@@ -20,17 +20,30 @@ type Linkage = {
   D: Point;
 };
 
-const MIN_ORDER = 3;
-const MAX_ORDER = 16;
+const MIN_ORDER = 2;
+const MAX_ORDER = 128;
 const DEFAULT_ORDER = 8;
+const ORDER_SNAP_BASE = 360;
 
-const MIN_INPUT_ANGLE = 30;
-const MAX_INPUT_ANGLE = 150;
+const MIN_INPUT_ANGLE = 1;
+const MAX_INPUT_ANGLE = 360;
 const DEFAULT_INPUT_ANGLE = 95;
 const NON_MIRRORED_PHASE_OFFSET = 28;
 
 const clamp = (value: number, min: number, max: number) =>
   Math.min(Math.max(value, min), max);
+
+const ALLOWED_ORDERS = Array.from(
+  { length: MAX_ORDER - MIN_ORDER + 1 },
+  (_, index) => index + MIN_ORDER,
+).filter((value) => ORDER_SNAP_BASE % value === 0);
+
+const snapOrder = (value: number) =>
+  ALLOWED_ORDERS.reduce(
+    (closest, current) =>
+      Math.abs(current - value) < Math.abs(closest - value) ? current : closest,
+    ALLOWED_ORDERS[0],
+  );
 
 const toRad = (angle: number) => (angle * Math.PI) / 180;
 
@@ -206,7 +219,7 @@ export function RosetteMechanismKonva() {
               max={MAX_ORDER}
               step={1}
               value={order}
-              onChange={(event) => setOrder(Number(event.target.value))}
+              onChange={(event) => setOrder(snapOrder(Number(event.target.value)))}
               className="w-full accent-teal-400"
               aria-label="Rosette order"
             />
