@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Circle, Layer, Line, Stage } from "react-konva";
 
 type Size = {
@@ -13,30 +13,38 @@ type Point = {
   y: number;
 };
 
-type Linkage = {
-  A: Point;
-  B: Point;
-  C: Point;
-  D: Point;
-};
-
 const MIN_ORDER = 2;
 const MAX_ORDER = 128;
 const DEFAULT_ORDER = 8;
 const ORDER_SNAP_BASE = 360;
 
-const MIN_INPUT_ANGLE = 1;
-const MAX_INPUT_ANGLE = 360;
-const DEFAULT_INPUT_ANGLE = 95;
-const NON_MIRRORED_PHASE_OFFSET = 28;
+const BASE_ORIENTATION_DEG = 95;
+const MIN_LINE_THICKNESS = 0.5;
+const MAX_LINE_THICKNESS = 12;
+const DEFAULT_LINE_THICKNESS = 1.8;
 
-const clamp = (value: number, min: number, max: number) =>
-  Math.min(Math.max(value, min), max);
+const DEFAULT_BASE_LINE: Point[] = [
+  { x: -80, y: 0 },
+  { x: 0, y: -24 },
+  { x: 80, y: 0 },
+];
 
-const ALLOWED_ORDERS = Array.from(
-  { length: MAX_ORDER - MIN_ORDER + 1 },
-  (_, index) => index + MIN_ORDER,
-).filter((value) => ORDER_SNAP_BASE % value === 0);
+const ALLOWED_ORDERS = (() => {
+  const powerOfTwoOrders: number[] = [];
+  let current = MIN_ORDER;
+
+  while (current <= MAX_ORDER) {
+    powerOfTwoOrders.push(current);
+    current *= 2;
+  }
+
+  const sixMultipleDivisors = Array.from(
+    { length: MAX_ORDER - MIN_ORDER + 1 },
+    (_, index) => index + MIN_ORDER,
+  ).filter((value) => ORDER_SNAP_BASE % value === 0 && value % 6 === 0);
+
+  return Array.from(new Set([...powerOfTwoOrders, ...sixMultipleDivisors])).sort((a, b) => a - b);
+})();
 
 const snapOrder = (value: number) =>
   ALLOWED_ORDERS.reduce(
@@ -54,65 +62,13 @@ const rotatePoint = (point: Point, angle: number): Point => ({
 
 const flattenPoints = (points: Point[]) => points.flatMap((point) => [point.x, point.y]);
 
-const circleIntersections = (
-  c1: Point,
-  r1: number,
-  c2: Point,
-  r2: number,
-): [Point, Point] | null => {
-  const dx = c2.x - c1.x;
-  const dy = c2.y - c1.y;
-  const distance = Math.hypot(dx, dy);
-
-  if (distance === 0) return null;
-  if (distance > r1 + r2) return null;
-  if (distance < Math.abs(r1 - r2)) return null;
-
-  const a = (r1 ** 2 - r2 ** 2 + distance ** 2) / (2 * distance);
-  const hSquared = r1 ** 2 - a ** 2;
-  if (hSquared < 0) return null;
-
-  const h = Math.sqrt(hSquared);
-  const px = c1.x + (a * dx) / distance;
-  const py = c1.y + (a * dy) / distance;
-
-  const rx = (-dy * h) / distance;
-  const ry = (dx * h) / distance;
-
-  return [
-    { x: px + rx, y: py + ry },
-    { x: px - rx, y: py - ry },
-  ];
-};
-
-const solveSymmetric4R = (
-  inputAngleDeg: number,
-  ground: number,
-  crank: number,
-  coupler: number,
-): Linkage | null => {
-  const theta = toRad(inputAngleDeg);
-
-  const A = { x: -ground / 2, y: 0 };
-  const D = { x: ground / 2, y: 0 };
-  const B = {
-    x: A.x + crank * Math.cos(theta),
-    y: A.y + crank * Math.sin(theta),
-  };
-
-  const intersections = circleIntersections(B, coupler, D, crank);
-  if (!intersections) return null;
-
-  const C = intersections[0].y >= intersections[1].y ? intersections[0] : intersections[1];
-  return { A, B, C, D };
-};
-
 export function RosetteMechanismKonva() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<Size>({ width: 0, height: 0 });
   const [order, setOrder] = useState(DEFAULT_ORDER);
-  const [inputAngle, setInputAngle] = useState(DEFAULT_INPUT_ANGLE);
+  const [lineThickness, setLineThickness] = useState(DEFAULT_LINE_THICKNESS);
   const [mirrorAdjacency, setMirrorAdjacency] = useState(true);
+  const [baseLinePoints, setBaseLinePoints] = useState<Point[]>(DEFAULT_BASE_LINE);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -138,71 +94,69 @@ export function RosetteMechanismKonva() {
     [size.height, size.width],
   );
 
-  const petals = useMemo(() => {
+  const baseRotation = useMemo(() => toRad(BASE_ORIENTATION_DEG), []);
+
+  const transformedCurves = useMemo(() => {
     if (size.width === 0 || size.height === 0) return [];
 
-    const minDimension = Math.min(size.width, size.height);
-    const ground = minDimension * 0.11;
-    const crank = ground * 0.8;
-    const coupler = ground * 1.05;
-    const ringRadius = minDimension * 0.25;
-    const rosetteSpin = toRad(((inputAngle - MIN_INPUT_ANGLE) / (MAX_INPUT_ANGLE - MIN_INPUT_ANGLE)) * (160 / order));
-
     return Array.from({ length: order }, (_, index) => {
-      const petalInputAngle = mirrorAdjacency
-        ? inputAngle
-        : clamp(
-            inputAngle + (index % 2 === 0 ? 0 : NON_MIRRORED_PHASE_OFFSET),
-            MIN_INPUT_ANGLE,
-            MAX_INPUT_ANGLE,
-          );
-
-      const localLinkage = solveSymmetric4R(petalInputAngle, ground, crank, coupler);
-      if (!localLinkage) return null;
-
-      const rotation = (index * 2 * Math.PI) / order + rosetteSpin;
+      const rotation = baseRotation + (index * 2 * Math.PI) / order;
       const mirrored = mirrorAdjacency && index % 2 === 1;
 
-      const toGlobal = (point: Point): Point => {
+      return baseLinePoints.map((point) => {
         const mirroredPoint = mirrored ? { x: -point.x, y: point.y } : point;
-        const lifted = { x: mirroredPoint.x, y: mirroredPoint.y + ringRadius };
-        const rotated = rotatePoint(lifted, rotation);
+        const rotated = rotatePoint(mirroredPoint, rotation);
         return { x: center.x + rotated.x, y: center.y + rotated.y };
+      });
+    });
+  }, [baseLinePoints, baseRotation, center.x, center.y, mirrorAdjacency, order, size.height, size.width]);
+
+  const activeBaseCurve = transformedCurves[0] ?? [];
+
+  const updateBaseHandle = (handleIndex: number, globalPoint: Point) => {
+    const centeredPoint = {
+      x: globalPoint.x - center.x,
+      y: globalPoint.y - center.y,
+    };
+
+    const localPoint = rotatePoint(centeredPoint, -baseRotation);
+
+    setBaseLinePoints((current) =>
+      current.map((point, index) => (index === handleIndex ? localPoint : point)),
+    );
+  };
+
+  const addHandle = () => {
+    setBaseLinePoints((current) => {
+      const last = current[current.length - 1];
+      const previous = current[current.length - 2] ?? { x: last.x - 30, y: last.y };
+
+      const direction = { x: last.x - previous.x, y: last.y - previous.y };
+      const directionLength = Math.hypot(direction.x, direction.y) || 1;
+      const step = 28;
+
+      const nextPoint = {
+        x: last.x + (direction.x / directionLength) * step,
+        y: last.y + (direction.y / directionLength) * step,
       };
 
-      return {
-        index,
-        A: toGlobal(localLinkage.A),
-        B: toGlobal(localLinkage.B),
-        C: toGlobal(localLinkage.C),
-        D: toGlobal(localLinkage.D),
-      };
-    }).filter((petal): petal is NonNullable<typeof petal> => petal !== null);
-  }, [center.x, center.y, inputAngle, mirrorAdjacency, order, size.height, size.width]);
+      return [...current, nextPoint];
+    });
+  };
 
-  const connectors = useMemo(() => {
-    if (petals.length < 2) return [] as Point[][];
-
-    const joints: Point[][] = [];
-    for (let i = 0; i < petals.length - 1; i += 1) {
-      const current = petals[i];
-      const next = petals[i + 1];
-
-      joints.push([current.B, next.D]);
-      joints.push([current.C, next.A]);
-    }
-    return joints;
-  }, [petals]);
+  const removeHandle = () => {
+    setBaseLinePoints((current) => (current.length > 2 ? current.slice(0, -1) : current));
+  };
 
   return (
     <div ref={containerRef} className="relative h-full w-full">
       <div className="pointer-events-none absolute left-4 top-4 z-10 w-96 rounded-md border border-zinc-600/80 bg-zinc-900/85 p-3 text-zinc-100 shadow-lg backdrop-blur-sm">
         <div className="mb-2">
           <p className="text-xs uppercase tracking-[0.16em] text-zinc-400">
-            Kinetic Rosette — Basic 4R Approximation
+            Kinetic Rosette — Reflected Base Curve
           </p>
           <p className="mt-1 text-xs text-zinc-400">
-            n repeated doubly-symmetrical 4R linkages. Mirrored adjacency keeps petals folding in sync.
+            The yellow base line is the seed shape. It is reflected on alternating sectors and rotated by 360/n.
           </p>
         </div>
 
@@ -225,24 +179,6 @@ export function RosetteMechanismKonva() {
             />
           </div>
 
-          <div>
-            <div className="mb-1 flex items-center justify-between text-xs text-zinc-300">
-              <label htmlFor="input-angle">Input angle (single-DOF)</label>
-              <span className="tabular-nums">{inputAngle.toFixed(0)}°</span>
-            </div>
-            <input
-              id="input-angle"
-              type="range"
-              min={MIN_INPUT_ANGLE}
-              max={MAX_INPUT_ANGLE}
-              step={1}
-              value={inputAngle}
-              onChange={(event) => setInputAngle(Number(event.target.value))}
-              className="w-full accent-teal-400"
-              aria-label="4R input angle"
-            />
-          </div>
-
           <div className="flex items-center justify-between gap-3">
             <label htmlFor="mirror-adj" className="text-xs text-zinc-300">
               Mirror adjacent linkages
@@ -256,13 +192,51 @@ export function RosetteMechanismKonva() {
             />
           </div>
 
+          <div>
+            <div className="mb-1 flex items-center justify-between text-xs text-zinc-300">
+              <label htmlFor="line-thickness">Line thickness</label>
+              <span className="tabular-nums">{lineThickness.toFixed(1)}</span>
+            </div>
+            <input
+              id="line-thickness"
+              type="range"
+              min={MIN_LINE_THICKNESS}
+              max={MAX_LINE_THICKNESS}
+              step={0.1}
+              value={lineThickness}
+              onChange={(event) => setLineThickness(Number(event.target.value))}
+              className="w-full accent-teal-400"
+              aria-label="Rosette line thickness"
+            />
+          </div>
+
+          <div className="flex items-center justify-between gap-2">
+            <button
+              type="button"
+              onClick={addHandle}
+              className="pointer-events-auto rounded border border-zinc-500 px-2 py-1 text-xs text-zinc-200 transition-colors hover:border-zinc-300 hover:bg-zinc-800"
+            >
+              Add handle
+            </button>
+            <button
+              type="button"
+              onClick={removeHandle}
+              disabled={baseLinePoints.length <= 2}
+              className="pointer-events-auto rounded border border-zinc-500 px-2 py-1 text-xs text-zinc-200 transition-colors hover:border-zinc-300 hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Remove handle
+            </button>
+            <span className="text-xs text-zinc-400">handles: {baseLinePoints.length}</span>
+          </div>
+
           <div className="flex items-center justify-end gap-2">
             <button
               type="button"
               onClick={() => {
                 setOrder(DEFAULT_ORDER);
-                setInputAngle(DEFAULT_INPUT_ANGLE);
+                setLineThickness(DEFAULT_LINE_THICKNESS);
                 setMirrorAdjacency(true);
+                setBaseLinePoints(DEFAULT_BASE_LINE);
               }}
               className="rounded border border-zinc-500 px-2 py-1 text-xs text-zinc-200 transition-colors hover:border-zinc-300 hover:bg-zinc-800"
             >
@@ -272,8 +246,8 @@ export function RosetteMechanismKonva() {
 
           <p className="text-[11px] text-zinc-400">
             {mirrorAdjacency
-              ? "Mirrored neighbors: petals fold harmoniously (same input angle)."
-              : "Non-mirrored neighbors: a phase offset is introduced to show desynchronized folding."}
+              ? "Mirrored neighbors: odd sectors use a left-right reflection of the base line."
+              : "Non-mirrored neighbors: all sectors use the same base line orientation."}
           </p>
         </div>
       </div>
@@ -299,64 +273,48 @@ export function RosetteMechanismKonva() {
               );
             })}
 
-            {connectors.map((jointPair, index) => (
+            {transformedCurves.map((curve, index) => (
               <Line
-                key={`connector-${index}`}
-                points={flattenPoints(jointPair)}
-                stroke="#14b8a6"
-                strokeWidth={1.5}
-                dash={[5, 5]}
-                opacity={0.65}
+                key={`curve-${index}`}
+                points={flattenPoints(curve)}
+                stroke="#67e8f9"
+                strokeWidth={lineThickness}
+                lineCap="round"
+                lineJoin="round"
+                opacity={0.72}
               />
             ))}
 
-            {petals.map((petal) => (
-              <Fragment key={`petal-${petal.index}`}>
+            {activeBaseCurve.length > 1 && (
+              <>
                 <Line
-                  key={`fill-${petal.index}`}
-                  points={flattenPoints([petal.A, petal.B, petal.C, petal.D])}
-                  closed
-                  fill="#22d3ee22"
-                  stroke="#67e8f9"
-                  strokeWidth={1.25}
+                  points={flattenPoints(activeBaseCurve)}
+                  stroke="#f59e0b"
+                  strokeWidth={lineThickness + 1.2}
+                  lineCap="round"
+                  lineJoin="round"
                 />
 
-                <Line
-                  key={`ab-${petal.index}`}
-                  points={flattenPoints([petal.A, petal.B])}
-                  stroke="#f8fafc"
-                  strokeWidth={2.4}
-                />
-                <Line
-                  key={`bc-${petal.index}`}
-                  points={flattenPoints([petal.B, petal.C])}
-                  stroke="#f8fafc"
-                  strokeWidth={2.4}
-                />
-                <Line
-                  key={`cd-${petal.index}`}
-                  points={flattenPoints([petal.C, petal.D])}
-                  stroke="#f8fafc"
-                  strokeWidth={2.4}
-                />
-                <Line
-                  key={`da-${petal.index}`}
-                  points={flattenPoints([petal.D, petal.A])}
-                  stroke="#f8fafc"
-                  strokeWidth={2.4}
-                />
-
-                {[petal.A, petal.B, petal.C, petal.D].map((joint, jointIndex) => (
+                {activeBaseCurve.map((handle, handleIndex) => (
                   <Circle
-                    key={`joint-${petal.index}-${jointIndex}`}
-                    x={joint.x}
-                    y={joint.y}
-                    radius={3.5}
-                    fill="#ffffff"
+                    key={`base-handle-${handleIndex}`}
+                    x={handle.x}
+                    y={handle.y}
+                    radius={6}
+                    fill="#f59e0b"
+                    stroke="#111827"
+                    strokeWidth={1.5}
+                    draggable
+                    onDragMove={(event) =>
+                      updateBaseHandle(handleIndex, {
+                        x: event.target.x(),
+                        y: event.target.y(),
+                      })
+                    }
                   />
                 ))}
-              </Fragment>
-            ))}
+              </>
+            )}
 
             <Circle x={center.x} y={center.y} radius={4.5} fill="#2dd4bf" />
           </Layer>
