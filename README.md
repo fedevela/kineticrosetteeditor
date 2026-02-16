@@ -29,6 +29,32 @@ To learn more about Next.js, take a look at the following resources:
 
 You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
+## End-to-end tests (Playwright)
+
+Run the E2E suite in headless mode:
+
+```bash
+npm run test:e2e
+```
+
+Open the Playwright interactive UI:
+
+```bash
+npm run test:e2e:ui
+```
+
+Run with a visible browser window:
+
+```bash
+npm run test:e2e:headed
+```
+
+Debug mode:
+
+```bash
+npm run test:e2e:debug
+```
+
 ## Deploy on Vercel
 
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
