@@ -13,17 +13,24 @@ type Point = {
   y: number;
 };
 
-type EditorLevel = "shape" | "rosette" | "tessellation";
+type EditorLevel = "shape" | "rosette" | "tiling";
+type TilingLattice = "hex" | "square";
 
-const MIN_ORDER = 2;
-const MAX_ORDER = 128;
+const ALLOWED_ORDERS = [4, 5, 6, 7, 8, 9, 10, 11, 12] as const;
+const MIN_ORDER = ALLOWED_ORDERS[0];
+const MAX_ORDER = ALLOWED_ORDERS[ALLOWED_ORDERS.length - 1];
 const DEFAULT_ORDER = 8;
-const ORDER_SNAP_BASE = 360;
 
 const BASE_ORIENTATION_DEG = 95;
 const MIN_LINE_THICKNESS = 0.5;
 const MAX_LINE_THICKNESS = 12;
 const DEFAULT_LINE_THICKNESS = 1.8;
+const MIN_TILING_SPACING = 80;
+const MAX_TILING_SPACING = 460;
+const DEFAULT_TILING_SPACING = 220;
+const MIN_TILING_RINGS = 1;
+const MAX_TILING_RINGS = 4;
+const DEFAULT_TILING_RINGS = 1;
 
 const DEFAULT_BASE_LINE: Point[] = [
   { x: -80, y: 0 },
@@ -58,32 +65,15 @@ const LEVEL_META: Record<
     badgeClass: "border-cyan-400/70 bg-cyan-500/15 text-cyan-200",
     accentTextClass: "text-cyan-300",
   },
-  tessellation: {
-    title: "Level 3 — Tessellation",
-    shortTitle: "L3 Tessellation",
+  tiling: {
+    title: "Level 3 — Tiling",
+    shortTitle: "L3 Tiling",
     description: "Compose repeated rosette cells into larger tiled patterns.",
     buttonClass: "border-violet-400/70 bg-violet-500/15 text-violet-200",
     badgeClass: "border-violet-400/70 bg-violet-500/15 text-violet-200",
     accentTextClass: "text-violet-300",
   },
 };
-
-const ALLOWED_ORDERS = (() => {
-  const powerOfTwoOrders: number[] = [];
-  let current = MIN_ORDER;
-
-  while (current <= MAX_ORDER) {
-    powerOfTwoOrders.push(current);
-    current *= 2;
-  }
-
-  const sixMultipleDivisors = Array.from(
-    { length: MAX_ORDER - MIN_ORDER + 1 },
-    (_, index) => index + MIN_ORDER,
-  ).filter((value) => ORDER_SNAP_BASE % value === 0 && value % 6 === 0);
-
-  return Array.from(new Set([...powerOfTwoOrders, ...sixMultipleDivisors])).sort((a, b) => a - b);
-})();
 
 const snapOrder = (value: number) =>
   ALLOWED_ORDERS.reduce(
@@ -111,6 +101,10 @@ export function RosetteMechanismKonva() {
   const [lineThickness, setLineThickness] = useState(DEFAULT_LINE_THICKNESS);
   const [mirrorAdjacency, setMirrorAdjacency] = useState(true);
   const [baseLinePoints, setBaseLinePoints] = useState<Point[]>(DEFAULT_BASE_LINE);
+  const [tilingLattice, setTilingLattice] = useState<TilingLattice>("hex");
+  const [tilingSpacing, setTilingSpacing] = useState(DEFAULT_TILING_SPACING);
+  const [tilingRings, setTilingRings] = useState(DEFAULT_TILING_RINGS);
+  const [interCellRotation, setInterCellRotation] = useState(0);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -138,7 +132,7 @@ export function RosetteMechanismKonva() {
 
   const baseRotation = useMemo(() => toRad(BASE_ORIENTATION_DEG), []);
 
-  const transformedCurves = useMemo(() => {
+  const rosetteCurvesLocal = useMemo(() => {
     if (size.width === 0 || size.height === 0) return [];
 
     return Array.from({ length: order }, (_, index) => {
@@ -147,31 +141,64 @@ export function RosetteMechanismKonva() {
 
       return baseLinePoints.map((point) => {
         const mirroredPoint = mirrored ? { x: -point.x, y: point.y } : point;
-        const rotated = rotatePoint(mirroredPoint, rotation);
-        return { x: center.x + rotated.x, y: center.y + rotated.y };
+        return rotatePoint(mirroredPoint, rotation);
       });
     });
-  }, [baseLinePoints, baseRotation, center.x, center.y, mirrorAdjacency, order, size.height, size.width]);
+  }, [baseLinePoints, baseRotation, mirrorAdjacency, order, size.height, size.width]);
+
+  const transformedCurves = useMemo(
+    () =>
+      rosetteCurvesLocal.map((curve) =>
+        curve.map((point) => ({ x: center.x + point.x, y: center.y + point.y })),
+      ),
+    [center.x, center.y, rosetteCurvesLocal],
+  );
 
   const activeBaseCurve = transformedCurves[0] ?? [];
 
   const isShapeLevel = editorLevel === "shape";
   const isRosetteLevel = editorLevel === "rosette";
-  const isTessellationLevel = editorLevel === "tessellation";
+  const isTilingLevel = editorLevel === "tiling";
 
-  const tessellationOffsets = useMemo(() => {
-    const spacing = Math.min(size.width, size.height) * 0.42;
+  const tilingCells = useMemo(() => {
+    const spacing = tilingSpacing;
 
-    return [
-      { x: 0, y: 0 },
-      { x: -spacing, y: 0 },
-      { x: spacing, y: 0 },
-      { x: -spacing / 2, y: -spacing * 0.86 },
-      { x: spacing / 2, y: -spacing * 0.86 },
-      { x: -spacing / 2, y: spacing * 0.86 },
-      { x: spacing / 2, y: spacing * 0.86 },
-    ];
-  }, [size.height, size.width]);
+    if (tilingLattice === "square") {
+      return Array.from({ length: tilingRings * 2 + 1 }, (_, rowOffset) => {
+        const row = rowOffset - tilingRings;
+
+        return Array.from({ length: tilingRings * 2 + 1 }, (_, colOffset) => {
+          const col = colOffset - tilingRings;
+          const ring = Math.max(Math.abs(row), Math.abs(col));
+
+          return {
+            x: col * spacing,
+            y: row * spacing,
+            ring,
+          };
+        });
+      }).flat();
+    }
+
+    const sin60 = Math.sqrt(3) / 2;
+    const cells: Array<{ x: number; y: number; ring: number }> = [];
+
+    for (let r = -tilingRings; r <= tilingRings; r += 1) {
+      for (let q = -tilingRings; q <= tilingRings; q += 1) {
+        const s = -q - r;
+        const ring = Math.max(Math.abs(q), Math.abs(r), Math.abs(s));
+        if (ring > tilingRings) continue;
+
+        cells.push({
+          x: spacing * (q + r / 2),
+          y: spacing * sin60 * r,
+          ring,
+        });
+      }
+    }
+
+    return cells;
+  }, [tilingLattice, tilingRings, tilingSpacing]);
 
   const updateBaseHandle = (handleIndex: number, globalPoint: Point) => {
     if (!isShapeLevel) return;
@@ -223,15 +250,23 @@ export function RosetteMechanismKonva() {
     setMirrorAdjacency(true);
   };
 
+  const resetTiling = () => {
+    setTilingLattice("hex");
+    setTilingSpacing(DEFAULT_TILING_SPACING);
+    setTilingRings(DEFAULT_TILING_RINGS);
+    setInterCellRotation(0);
+  };
+
   const resetAll = () => {
     resetShape();
     resetRosette();
+    resetTiling();
     setEditorLevel("shape");
   };
 
-  const guideStroke = isRosetteLevel ? "#22d3ee" : "#334155";
-  const guideOpacity = isRosetteLevel ? 0.7 : isShapeLevel ? 0.3 : 0.2;
-  const motifStroke = isTessellationLevel ? "#c084fc" : "#67e8f9";
+  const guideStroke = isRosetteLevel ? "#22d3ee" : isTilingLevel ? "#a855f7" : "#334155";
+  const guideOpacity = isRosetteLevel ? 0.7 : isShapeLevel ? 0.3 : 0.22;
+  const motifStroke = isTilingLevel ? "#c084fc" : "#67e8f9";
   const motifOpacity = isRosetteLevel ? 0.78 : isShapeLevel ? 0.28 : 0.42;
   const baseOpacity = isShapeLevel ? 1 : 0.4;
   const centerColor = isShapeLevel ? "#f59e0b" : isRosetteLevel ? "#2dd4bf" : "#c084fc";
@@ -246,7 +281,7 @@ export function RosetteMechanismKonva() {
             Kinetic Rosette — Multi-Level Editor
           </p>
           <p className="mt-1 text-xs text-zinc-400">
-            Separate edits by level: base shape, rosette rules, and tessellation composition.
+            Separate edits by level: base shape, rosette rules, and tiling composition.
           </p>
         </div>
 
@@ -376,15 +411,94 @@ export function RosetteMechanismKonva() {
             </>
           )}
 
-          {isTessellationLevel && (
+          {isTilingLevel && (
             <div className="space-y-2 rounded-md border border-violet-500/35 bg-violet-950/20 p-2">
-              <p className="text-xs text-violet-200">Tessellation controls are next.</p>
-              <p className="text-[11px] text-violet-200/75">
-                Planned controls: lattice type, spacing, inter-cell rotation and clipping.
-              </p>
-              <p className="text-[11px] text-zinc-400">
-                This level already previews neighboring motif cells and locks lower-level interaction.
-              </p>
+              <p className="text-xs text-violet-200">Tiling controls</p>
+
+              <div className="grid grid-cols-2 gap-1">
+                {([
+                  ["hex", "Hex lattice"],
+                  ["square", "Square grid"],
+                ] as const).map(([value, label]) => {
+                  const active = tilingLattice === value;
+
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setTilingLattice(value)}
+                      className={`rounded border px-2 py-1 text-[11px] transition-colors ${
+                        active
+                          ? "border-violet-300/80 bg-violet-500/25 text-violet-100"
+                          : "border-violet-800/60 bg-violet-950/30 text-violet-200/80 hover:border-violet-500/70"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div>
+                <div className="mb-1 flex items-center justify-between text-xs text-zinc-300">
+                  <label htmlFor="tiling-rings">Expansion rings</label>
+                  <span className="tabular-nums">{tilingRings}</span>
+                </div>
+                <input
+                  id="tiling-rings"
+                  type="range"
+                  min={MIN_TILING_RINGS}
+                  max={MAX_TILING_RINGS}
+                  step={1}
+                  value={tilingRings}
+                  onChange={(event) => setTilingRings(Number(event.target.value))}
+                  className="w-full accent-violet-400"
+                />
+              </div>
+
+              <div>
+                <div className="mb-1 flex items-center justify-between text-xs text-zinc-300">
+                  <label htmlFor="tiling-spacing">Cell spacing</label>
+                  <span className="tabular-nums">{tilingSpacing}</span>
+                </div>
+                <input
+                  id="tiling-spacing"
+                  type="range"
+                  min={MIN_TILING_SPACING}
+                  max={MAX_TILING_SPACING}
+                  step={2}
+                  value={tilingSpacing}
+                  onChange={(event) => setTilingSpacing(Number(event.target.value))}
+                  className="w-full accent-violet-400"
+                />
+              </div>
+
+              <div>
+                <div className="mb-1 flex items-center justify-between text-xs text-zinc-300">
+                  <label htmlFor="inter-cell-rotation">Inter-cell rotation</label>
+                  <span className="tabular-nums">{interCellRotation}°</span>
+                </div>
+                <input
+                  id="inter-cell-rotation"
+                  type="range"
+                  min={-30}
+                  max={30}
+                  step={1}
+                  value={interCellRotation}
+                  onChange={(event) => setInterCellRotation(Number(event.target.value))}
+                  className="w-full accent-violet-400"
+                />
+              </div>
+
+              <div className="flex items-center justify-end">
+                <button
+                  type="button"
+                  onClick={resetTiling}
+                  className="rounded border border-zinc-500 px-2 py-1 text-xs text-zinc-200 transition-colors hover:border-zinc-300 hover:bg-zinc-800"
+                >
+                  Reset tiling
+                </button>
+              </div>
             </div>
           )}
 
@@ -395,7 +509,8 @@ export function RosetteMechanismKonva() {
                 (mirrorAdjacency
                   ? "Mirrored neighbors ON: odd sectors are reflected."
                   : "Mirrored neighbors OFF: all sectors share orientation.")}
-              {isTessellationLevel && "Preview mode for level-3 composition (coming next)."}
+              {isTilingLevel &&
+                `Tiling ${tilingLattice} layout · rings ${tilingRings} · spacing ${tilingSpacing}.`}
             </p>
             <button
               type="button"
@@ -436,46 +551,58 @@ export function RosetteMechanismKonva() {
               );
             })}
 
-            {transformedCurves.map((curve, index) => (
-              <Line
-                key={`curve-${index}`}
-                points={flattenPoints(curve)}
-                stroke={motifStroke}
-                strokeWidth={lineThickness}
-                lineCap="round"
-                lineJoin="round"
-                opacity={motifOpacity}
-              />
-            ))}
-
-            {isTessellationLevel &&
-              tessellationOffsets.slice(1).map((offset, offsetIndex) => (
-                <Group key={`tess-preview-${offsetIndex}`}>
-                  {transformedCurves.map((curve, curveIndex) => (
-                    <Line
-                      key={`tess-preview-${offsetIndex}-${curveIndex}`}
-                      points={flattenPoints(
-                        curve.map((point) => ({
-                          x: point.x + offset.x,
-                          y: point.y + offset.y,
-                        })),
-                      )}
-                      stroke="#c084fc"
-                      strokeWidth={Math.max(0.5, lineThickness - 0.4)}
-                      lineCap="round"
-                      lineJoin="round"
-                      opacity={0.22}
-                    />
-                  ))}
-                  <Circle
-                    x={center.x + offset.x}
-                    y={center.y + offset.y}
-                    radius={3.5}
-                    fill="#c084fc"
-                    opacity={0.65}
-                  />
-                </Group>
+            {!isTilingLevel &&
+              transformedCurves.map((curve, index) => (
+                <Line
+                  key={`curve-${index}`}
+                  points={flattenPoints(curve)}
+                  stroke={motifStroke}
+                  strokeWidth={lineThickness}
+                  lineCap="round"
+                  lineJoin="round"
+                  opacity={motifOpacity}
+                />
               ))}
+
+            {isTilingLevel &&
+              tilingCells.map((cell, cellIndex) => {
+                const cellRotation = toRad(interCellRotation * cell.ring);
+                const cellOpacity = Math.max(0.2, 0.8 - cell.ring * 0.12);
+
+                return (
+                  <Group key={`tiling-cell-${cellIndex}`}>
+                    {rosetteCurvesLocal.map((curve, curveIndex) => (
+                      <Line
+                        key={`tiling-cell-${cellIndex}-${curveIndex}`}
+                        points={flattenPoints(
+                          curve.map((point) => {
+                            const orientedPoint =
+                              cellRotation === 0 ? point : rotatePoint(point, cellRotation);
+
+                            return {
+                              x: center.x + cell.x + orientedPoint.x,
+                              y: center.y + cell.y + orientedPoint.y,
+                            };
+                          }),
+                        )}
+                        stroke="#c084fc"
+                        strokeWidth={Math.max(0.55, lineThickness - 0.25)}
+                        lineCap="round"
+                        lineJoin="round"
+                        opacity={cellOpacity}
+                      />
+                    ))}
+
+                    <Circle
+                      x={center.x + cell.x}
+                      y={center.y + cell.y}
+                      radius={cell.ring === 0 ? 3.6 : 2.8}
+                      fill="#c084fc"
+                      opacity={cell.ring === 0 ? 0.8 : 0.4}
+                    />
+                  </Group>
+                );
+              })}
 
             {activeBaseCurve.length > 1 && (
               <>
