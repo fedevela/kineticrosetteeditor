@@ -9,6 +9,8 @@ import {
   DEFAULT_TILING_RINGS,
   DEFAULT_TILING_SPACING,
   LEVEL_META,
+  MAX_BASE_ORIENTATION_DEG,
+  MIN_BASE_ORIENTATION_DEG,
 } from "./rosette/constants";
 import { RosetteControlsPanel } from "./rosette/components/RosetteControlsPanel";
 import { EditingBadge } from "./rosette/components/EditingBadge";
@@ -26,6 +28,7 @@ export function RosetteMechanism() {
   const [editorLevel, setEditorLevel] = useState<EditorLevel>("shape");
   const [order, setOrder] = useState(DEFAULT_ORDER);
   const [lineThickness, setLineThickness] = useState(DEFAULT_LINE_THICKNESS);
+  const [baseOrientationDeg, setBaseOrientationDeg] = useState(BASE_ORIENTATION_DEG);
   const [mirrorAdjacency, setMirrorAdjacency] = useState(true);
   const [baseLinePoints, setBaseLinePoints] = useState<Point[]>(DEFAULT_BASE_LINE);
   const [tilingLattice, setTilingLattice] = useState<TilingLattice>("hex");
@@ -48,7 +51,7 @@ export function RosetteMechanism() {
   }, []);
 
   const center = useMemo(() => ({ x: size.width / 2, y: size.height / 2 }), [size]);
-  const baseRotation = useMemo(() => toRad(BASE_ORIENTATION_DEG), []);
+  const baseRotation = useMemo(() => toRad(baseOrientationDeg), [baseOrientationDeg]);
 
   const rosetteCurvesLocal = useMemo(
     () => buildRosetteCurvesLocal(baseLinePoints, order, baseRotation, mirrorAdjacency),
@@ -89,6 +92,7 @@ export function RosetteMechanism() {
     setTilingSpacing(DEFAULT_TILING_SPACING);
     setTilingRings(DEFAULT_TILING_RINGS);
     setInterCellRotation(0);
+    setBaseOrientationDeg(BASE_ORIENTATION_DEG);
   };
   const resetAll = () => {
     resetShape();
@@ -108,6 +112,10 @@ export function RosetteMechanism() {
         setOrder={setOrder}
         lineThickness={lineThickness}
         setLineThickness={setLineThickness}
+        baseOrientationDeg={baseOrientationDeg}
+        setBaseOrientationDeg={(value) =>
+          setBaseOrientationDeg(Math.min(MAX_BASE_ORIENTATION_DEG, Math.max(MIN_BASE_ORIENTATION_DEG, value)))
+        }
         mirrorAdjacency={mirrorAdjacency}
         setMirrorAdjacency={setMirrorAdjacency}
         baseLinePointsLength={baseLinePoints.length}

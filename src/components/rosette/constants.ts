@@ -6,6 +6,8 @@ export const MAX_ORDER = ALLOWED_ORDERS[ALLOWED_ORDERS.length - 1];
 export const DEFAULT_ORDER = 8;
 
 export const BASE_ORIENTATION_DEG = 95;
+export const MIN_BASE_ORIENTATION_DEG = -180;
+export const MAX_BASE_ORIENTATION_DEG = 180;
 export const MIN_LINE_THICKNESS = 0.5;
 export const MAX_LINE_THICKNESS = 12;
 export const DEFAULT_LINE_THICKNESS = 1.8;

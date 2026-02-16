@@ -38,7 +38,6 @@ export function RosetteCanvas({
   const motifStroke = isTilingLevel ? "#c084fc" : "#67e8f9";
   const motifOpacity = isRosetteLevel ? 0.78 : isShapeLevel ? 0.28 : 0.42;
   const baseOpacity = isShapeLevel ? 1 : 0.4;
-  const centerColor = isShapeLevel ? "#f59e0b" : isRosetteLevel ? "#2dd4bf" : "#c084fc";
 
   if (size.width <= 0 || size.height <= 0) return null;
 
@@ -149,8 +148,6 @@ export function RosetteCanvas({
               ))}
           </>
         )}
-
-        <Circle x={center.x} y={center.y} radius={4.5} fill={centerColor} />
       </Layer>
     </Stage>
   );

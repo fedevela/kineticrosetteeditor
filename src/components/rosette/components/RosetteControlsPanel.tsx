@@ -1,9 +1,11 @@
 import {
   LEVEL_META,
+  MAX_BASE_ORIENTATION_DEG,
   MAX_LINE_THICKNESS,
   MAX_ORDER,
   MAX_TILING_RINGS,
   MAX_TILING_SPACING,
+  MIN_BASE_ORIENTATION_DEG,
   MIN_LINE_THICKNESS,
   MIN_ORDER,
   MIN_TILING_RINGS,
@@ -19,6 +21,8 @@ type RosetteControlsPanelProps = {
   setOrder: (value: number) => void;
   lineThickness: number;
   setLineThickness: (value: number) => void;
+  baseOrientationDeg: number;
+  setBaseOrientationDeg: (value: number) => void;
   mirrorAdjacency: boolean;
   setMirrorAdjacency: (value: boolean) => void;
   baseLinePointsLength: number;
@@ -46,6 +50,8 @@ export function RosetteControlsPanel(props: RosetteControlsPanelProps) {
     setOrder,
     lineThickness,
     setLineThickness,
+    baseOrientationDeg,
+    setBaseOrientationDeg,
     mirrorAdjacency,
     setMirrorAdjacency,
     baseLinePointsLength,
@@ -184,6 +190,23 @@ export function RosetteControlsPanel(props: RosetteControlsPanelProps) {
                 <span className="tabular-nums">{interCellRotation}°</span>
               </div>
               <input id="inter-cell-rotation" type="range" min={-30} max={30} step={1} value={interCellRotation} onChange={(event) => setInterCellRotation(Number(event.target.value))} className="w-full accent-violet-400" aria-label="Inter-cell rotation" />
+            </div>
+            <div>
+              <div className="mb-1 flex items-center justify-between text-xs text-zinc-300">
+                <label htmlFor="base-orientation">Base rotation</label>
+                <span className="tabular-nums">{baseOrientationDeg}°</span>
+              </div>
+              <input
+                id="base-orientation"
+                type="range"
+                min={MIN_BASE_ORIENTATION_DEG}
+                max={MAX_BASE_ORIENTATION_DEG}
+                step={1}
+                value={baseOrientationDeg}
+                onChange={(event) => setBaseOrientationDeg(Number(event.target.value))}
+                className="w-full accent-violet-400"
+                aria-label="Base rotation"
+              />
             </div>
             <div className="flex items-center justify-end">
               <button type="button" onClick={resetTiling} className="rounded border border-zinc-500 px-2 py-1 text-xs text-zinc-200 transition-colors hover:border-zinc-300 hover:bg-zinc-800">Reset tiling</button>
