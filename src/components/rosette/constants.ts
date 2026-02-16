@@ -1,4 +1,10 @@
-import { EditorLevel, LevelMeta, Point } from "./types";
+import {
+  EditorLevel,
+  LevelMeta,
+  Point,
+  TessellationBranchOrder,
+  TessellationSymmetry,
+} from "./types";
 
 const ORDER_BASES = [4, 5, 6, 7, 8, 9, 10, 11, 12] as const;
 export const ALLOWED_ORDERS = Array.from(
@@ -24,6 +30,11 @@ export const DEFAULT_TILING_SPACING = 220;
 export const MIN_TILING_RINGS = 1;
 export const MAX_TILING_RINGS = 4;
 export const DEFAULT_TILING_RINGS = 1;
+export const DEFAULT_TESSELLATION_SYMMETRY: TessellationSymmetry = "translation";
+export const DEFAULT_TESSELLATION_BRANCH_ORDER: TessellationBranchOrder = "ring";
+export const MIN_FOLD_PROGRESS = 0;
+export const MAX_FOLD_PROGRESS = 1;
+export const DEFAULT_FOLD_PROGRESS = 0;
 
 export const DEFAULT_BASE_LINE: Point[] = [
   { x: 0, y: 0 },

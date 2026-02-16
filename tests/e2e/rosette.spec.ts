@@ -37,7 +37,7 @@ test.describe("Rosette mechanism editor", () => {
     await expectCanvasToBeDrawn(page);
 
     // Shape level interactions
-    await expect(page.getByRole("checkbox", { name: "limit movement to simmetrical axis" })).toBeChecked();
+    await expect(page.getByRole("checkbox", { name: "limit movement to symmetrical axis" })).toBeChecked();
     await expect(page.getByText("handles: 5")).toBeVisible();
     await page.getByRole("button", { name: "Add handle" }).click();
     await expect(page.getByText("handles: 6")).toBeVisible();
@@ -76,23 +76,34 @@ test.describe("Rosette mechanism editor", () => {
     await expect(page.getByText(/Editing: Level 3 — (Tiling|Tessellation)/)).toBeVisible();
 
     await page.getByRole("button", { name: "Square grid" }).click();
-    await expect(page.getByText("Tiling square layout · rings 1 · spacing 220.")).toBeVisible();
+    await expect(
+      page.getByText("Tiling square layout · rings 1 · spacing 220 · translation symmetry."),
+    ).toBeVisible();
 
     await page.getByLabel("Expansion rings").fill("4");
     await page.getByLabel("Cell spacing").fill("120");
     await page.getByLabel("Inter-cell rotation").fill("20");
-    await expect(page.getByText("Tiling square layout · rings 4 · spacing 120.")).toBeVisible();
+    await page.getByRole("button", { name: "Reflection" }).click();
+    await page.getByRole("button", { name: "Axis first" }).click();
+    await page.getByLabel("Fold progression").fill("0.65");
+    await page.getByLabel("Base rotation").fill("35");
+    await page.getByLabel("Fixed cell id").fill("1,0");
+    await expect(
+      page.getByText("Tiling square layout · rings 4 · spacing 120 · reflection symmetry."),
+    ).toBeVisible();
     await expectCanvasToBeDrawn(page);
 
     await page.getByRole("button", { name: "Reset tiling" }).click();
-    await expect(page.getByText("Tiling hex layout · rings 1 · spacing 220.")).toBeVisible();
+    await expect(
+      page.getByText("Tiling hex layout · rings 1 · spacing 220 · translation symmetry."),
+    ).toBeVisible();
     await expectCanvasToBeDrawn(page);
 
     // Global reset returns to defaults and keeps drawing
     await page.getByRole("button", { name: "Reset all" }).click();
     await expect(page.getByText("Editing: Level 1 — Shape")).toBeVisible();
     await expect(page.getByText("handles: 5")).toBeVisible();
-    await expect(page.getByRole("checkbox", { name: "limit movement to simmetrical axis" })).toBeChecked();
+    await expect(page.getByRole("checkbox", { name: "limit movement to symmetrical axis" })).toBeChecked();
     await expectCanvasToBeDrawn(page);
   });
 });

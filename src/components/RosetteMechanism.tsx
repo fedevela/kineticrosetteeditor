@@ -3,7 +3,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   BASE_ORIENTATION_DEG,
+  DEFAULT_FOLD_PROGRESS,
   DEFAULT_BASE_LINE,
+  DEFAULT_TESSELLATION_BRANCH_ORDER,
+  DEFAULT_TESSELLATION_SYMMETRY,
   DEFAULT_LINE_THICKNESS,
   DEFAULT_ORDER,
   DEFAULT_TILING_RINGS,
@@ -22,9 +25,16 @@ import {
   removeHandlePoint,
   updateBaseHandleLocal,
 } from "./rosette/domains/shape";
-import { buildTilingCells } from "./rosette/domains/tessellation";
+import { buildTessellationMechanism, buildTilingCells } from "./rosette/domains/tessellation";
 import { toRad } from "./rosette/math";
-import { EditorLevel, Point, Size, TilingLattice } from "./rosette/types";
+import {
+  EditorLevel,
+  Point,
+  Size,
+  TessellationBranchOrder,
+  TessellationSymmetry,
+  TilingLattice,
+} from "./rosette/types";
 
 export function RosetteMechanism() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -43,6 +53,12 @@ export function RosetteMechanism() {
   const [tilingSpacing, setTilingSpacing] = useState(DEFAULT_TILING_SPACING);
   const [tilingRings, setTilingRings] = useState(DEFAULT_TILING_RINGS);
   const [interCellRotation, setInterCellRotation] = useState(0);
+  const [tessellationSymmetry, setTessellationSymmetry] =
+    useState<TessellationSymmetry>(DEFAULT_TESSELLATION_SYMMETRY);
+  const [tessellationBranchOrder, setTessellationBranchOrder] =
+    useState<TessellationBranchOrder>(DEFAULT_TESSELLATION_BRANCH_ORDER);
+  const [foldProgress, setFoldProgress] = useState(DEFAULT_FOLD_PROGRESS);
+  const [fixedCellId, setFixedCellId] = useState("0,0");
 
   useEffect(() => {
     const container = containerRef.current;
@@ -76,6 +92,29 @@ export function RosetteMechanism() {
   const tilingCells = useMemo(
     () => buildTilingCells(tilingLattice, tilingRings, tilingSpacing),
     [tilingLattice, tilingRings, tilingSpacing],
+  );
+
+  const tessellationMechanism = useMemo(
+    () =>
+      buildTessellationMechanism({
+        cells: tilingCells,
+        order,
+        baseOrientation: baseRotation,
+        interCellRotation: toRad(interCellRotation) * foldProgress,
+        symmetry: tessellationSymmetry,
+        branchOrder: tessellationBranchOrder,
+        fixedCellId: fixedCellId.trim() || undefined,
+      }),
+    [
+      tilingCells,
+      order,
+      baseRotation,
+      interCellRotation,
+      foldProgress,
+      tessellationSymmetry,
+      tessellationBranchOrder,
+      fixedCellId,
+    ],
   );
 
   const updateBaseHandle = (handleIndex: number, globalPoint: Point) => {
@@ -131,6 +170,10 @@ export function RosetteMechanism() {
     setTilingRings(DEFAULT_TILING_RINGS);
     setInterCellRotation(0);
     setBaseOrientationDeg(BASE_ORIENTATION_DEG);
+    setTessellationSymmetry(DEFAULT_TESSELLATION_SYMMETRY);
+    setTessellationBranchOrder(DEFAULT_TESSELLATION_BRANCH_ORDER);
+    setFoldProgress(DEFAULT_FOLD_PROGRESS);
+    setFixedCellId("0,0");
   };
   const resetAll = () => {
     resetShape();
@@ -165,12 +208,20 @@ export function RosetteMechanism() {
         resetRosette={resetRosette}
         tilingLattice={tilingLattice}
         setTilingLattice={setTilingLattice}
+        tessellationSymmetry={tessellationSymmetry}
+        setTessellationSymmetry={setTessellationSymmetry}
+        tessellationBranchOrder={tessellationBranchOrder}
+        setTessellationBranchOrder={setTessellationBranchOrder}
         tilingRings={tilingRings}
         setTilingRings={setTilingRings}
         tilingSpacing={tilingSpacing}
         setTilingSpacing={setTilingSpacing}
         interCellRotation={interCellRotation}
         setInterCellRotation={setInterCellRotation}
+        foldProgress={foldProgress}
+        setFoldProgress={setFoldProgress}
+        fixedCellId={fixedCellId}
+        setFixedCellId={setFixedCellId}
         resetTiling={resetTiling}
         resetAll={resetAll}
       />
@@ -186,8 +237,7 @@ export function RosetteMechanism() {
         transformedCurves={transformedCurves}
         rosetteCurvesLocal={rosetteCurvesLocal}
         activeBaseCurve={activeBaseCurve}
-        tilingCells={tilingCells}
-        interCellRotation={interCellRotation}
+        tessellationMechanism={tessellationMechanism}
         onHandleDrag={updateBaseHandle}
       />
     </div>
