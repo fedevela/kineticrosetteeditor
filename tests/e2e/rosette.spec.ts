@@ -37,13 +37,14 @@ test.describe("Rosette mechanism editor", () => {
     await expectCanvasToBeDrawn(page);
 
     // Shape level interactions
-    await expect(page.getByText("handles: 3")).toBeVisible();
+    await expect(page.getByRole("checkbox", { name: "limit movement to simmetrical axis" })).toBeChecked();
+    await expect(page.getByText("handles: 5")).toBeVisible();
     await page.getByRole("button", { name: "Add handle" }).click();
-    await expect(page.getByText("handles: 4")).toBeVisible();
+    await expect(page.getByText("handles: 6")).toBeVisible();
     await expectCanvasToBeDrawn(page);
 
     await page.getByRole("button", { name: "Remove handle" }).click();
-    await expect(page.getByText("handles: 3")).toBeVisible();
+    await expect(page.getByText("handles: 5")).toBeVisible();
     await expectCanvasToBeDrawn(page);
 
     // Rosette level interactions
@@ -90,7 +91,8 @@ test.describe("Rosette mechanism editor", () => {
     // Global reset returns to defaults and keeps drawing
     await page.getByRole("button", { name: "Reset all" }).click();
     await expect(page.getByText("Editing: Level 1 — Shape")).toBeVisible();
-    await expect(page.getByText("handles: 3")).toBeVisible();
+    await expect(page.getByText("handles: 5")).toBeVisible();
+    await expect(page.getByRole("checkbox", { name: "limit movement to simmetrical axis" })).toBeChecked();
     await expectCanvasToBeDrawn(page);
   });
 });

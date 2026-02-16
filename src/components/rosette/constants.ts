@@ -1,6 +1,13 @@
 import { EditorLevel, LevelMeta, Point } from "./types";
 
-export const ALLOWED_ORDERS = [4, 5, 6, 7, 8, 9, 10, 11, 12] as const;
+const ORDER_BASES = [4, 5, 6, 7, 8, 9, 10, 11, 12] as const;
+export const ALLOWED_ORDERS = Array.from(
+  new Set(
+    ORDER_BASES.flatMap((base) =>
+      Array.from({ length: Math.floor(128 / base) }, (_, index) => base * (index + 1)),
+    ),
+  ),
+).sort((a, b) => a - b);
 export const MIN_ORDER = ALLOWED_ORDERS[0];
 export const MAX_ORDER = ALLOWED_ORDERS[ALLOWED_ORDERS.length - 1];
 export const DEFAULT_ORDER = 8;
@@ -19,9 +26,11 @@ export const MAX_TILING_RINGS = 4;
 export const DEFAULT_TILING_RINGS = 1;
 
 export const DEFAULT_BASE_LINE: Point[] = [
-  { x: -80, y: 0 },
-  { x: 0, y: -24 },
-  { x: 80, y: 0 },
+  { x: 0, y: 0 },
+  { x: 34, y: -18 },
+  { x: 58, y: -52 },
+  { x: 36, y: -92 },
+  { x: 0, y: -130 },
 ];
 
 export const LEVEL_META: Record<EditorLevel, LevelMeta> = {

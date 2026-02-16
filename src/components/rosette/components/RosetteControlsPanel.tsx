@@ -25,6 +25,8 @@ type RosetteControlsPanelProps = {
   setBaseOrientationDeg: (value: number) => void;
   mirrorAdjacency: boolean;
   setMirrorAdjacency: (value: boolean) => void;
+  limitMovementToSymmetricalAxis: boolean;
+  setLimitMovementToSymmetricalAxis: (value: boolean) => void;
   baseLinePointsLength: number;
   addHandle: () => void;
   removeHandle: () => void;
@@ -54,6 +56,8 @@ export function RosetteControlsPanel(props: RosetteControlsPanelProps) {
     setBaseOrientationDeg,
     mirrorAdjacency,
     setMirrorAdjacency,
+    limitMovementToSymmetricalAxis,
+    setLimitMovementToSymmetricalAxis,
     baseLinePointsLength,
     addHandle,
     removeHandle,
@@ -117,6 +121,18 @@ export function RosetteControlsPanel(props: RosetteControlsPanelProps) {
 
         {isShapeLevel && (
           <>
+            <div className="flex items-center justify-between gap-3 rounded border border-amber-500/30 bg-amber-500/10 px-2 py-1.5">
+              <label htmlFor="limit-sym-axis" className="text-xs text-amber-100">
+                limit movement to symmetrical axis
+              </label>
+              <input
+                id="limit-sym-axis"
+                type="checkbox"
+                checked={limitMovementToSymmetricalAxis}
+                onChange={(event) => setLimitMovementToSymmetricalAxis(event.target.checked)}
+                className="h-4 w-4 accent-amber-400"
+              />
+            </div>
             <div className="flex items-center justify-between gap-2">
               <button type="button" onClick={addHandle} className="rounded border border-zinc-500 px-2 py-1 text-xs text-zinc-200 transition-colors hover:border-zinc-300 hover:bg-zinc-800">Add handle</button>
               <button type="button" onClick={removeHandle} disabled={baseLinePointsLength <= 2} className="rounded border border-zinc-500 px-2 py-1 text-xs text-zinc-200 transition-colors hover:border-zinc-300 hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-40">Remove handle</button>

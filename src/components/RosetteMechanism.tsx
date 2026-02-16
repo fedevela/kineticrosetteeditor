@@ -16,7 +16,12 @@ import { RosetteControlsPanel } from "./rosette/components/RosetteControlsPanel"
 import { EditingBadge } from "./rosette/components/EditingBadge";
 import { RosetteCanvas } from "./rosette/components/RosetteCanvas";
 import { buildRosetteCurvesLocal, transformCurvesToCenter } from "./rosette/domains/rosette";
-import { addHandlePoint, removeHandlePoint, updateBaseHandleLocal } from "./rosette/domains/shape";
+import {
+  addHandlePoint,
+  constrainBaseLineToSymmetricalAxis,
+  removeHandlePoint,
+  updateBaseHandleLocal,
+} from "./rosette/domains/shape";
 import { buildTilingCells } from "./rosette/domains/tessellation";
 import { toRad } from "./rosette/math";
 import { EditorLevel, Point, Size, TilingLattice } from "./rosette/types";
@@ -30,7 +35,10 @@ export function RosetteMechanism() {
   const [lineThickness, setLineThickness] = useState(DEFAULT_LINE_THICKNESS);
   const [baseOrientationDeg, setBaseOrientationDeg] = useState(BASE_ORIENTATION_DEG);
   const [mirrorAdjacency, setMirrorAdjacency] = useState(true);
-  const [baseLinePoints, setBaseLinePoints] = useState<Point[]>(DEFAULT_BASE_LINE);
+  const [baseLinePoints, setBaseLinePoints] = useState<Point[]>(
+    constrainBaseLineToSymmetricalAxis(DEFAULT_BASE_LINE),
+  );
+  const [limitMovementToSymmetricalAxis, setLimitMovementToSymmetricalAxis] = useState(true);
   const [tilingLattice, setTilingLattice] = useState<TilingLattice>("hex");
   const [tilingSpacing, setTilingSpacing] = useState(DEFAULT_TILING_SPACING);
   const [tilingRings, setTilingRings] = useState(DEFAULT_TILING_RINGS);
@@ -73,15 +81,45 @@ export function RosetteMechanism() {
   const updateBaseHandle = (handleIndex: number, globalPoint: Point) => {
     if (editorLevel !== "shape") return;
     setBaseLinePoints((current) =>
-      updateBaseHandleLocal(current, handleIndex, globalPoint, center, baseRotation),
+      updateBaseHandleLocal(
+        current,
+        handleIndex,
+        globalPoint,
+        center,
+        baseRotation,
+        limitMovementToSymmetricalAxis,
+      ),
     );
   };
 
-  const addHandle = () => editorLevel === "shape" && setBaseLinePoints((current) => addHandlePoint(current));
-  const removeHandle = () =>
-    editorLevel === "shape" && setBaseLinePoints((current) => removeHandlePoint(current));
+  const toggleLimitMovementToSymmetricalAxis = (enabled: boolean) => {
+    setLimitMovementToSymmetricalAxis(enabled);
+    if (enabled) {
+      setBaseLinePoints((current) => constrainBaseLineToSymmetricalAxis(current));
+    }
+  };
 
-  const resetShape = () => setBaseLinePoints(DEFAULT_BASE_LINE);
+  const addHandle = () =>
+    editorLevel === "shape" &&
+    setBaseLinePoints((current) => {
+      const updated = addHandlePoint(current);
+      return limitMovementToSymmetricalAxis
+        ? constrainBaseLineToSymmetricalAxis(updated)
+        : updated;
+    });
+  const removeHandle = () =>
+    editorLevel === "shape" &&
+    setBaseLinePoints((current) => {
+      const updated = removeHandlePoint(current);
+      return limitMovementToSymmetricalAxis
+        ? constrainBaseLineToSymmetricalAxis(updated)
+        : updated;
+    });
+
+  const resetShape = () => {
+    setLimitMovementToSymmetricalAxis(true);
+    setBaseLinePoints(constrainBaseLineToSymmetricalAxis(DEFAULT_BASE_LINE));
+  };
   const resetRosette = () => {
     setOrder(DEFAULT_ORDER);
     setLineThickness(DEFAULT_LINE_THICKNESS);
@@ -118,6 +156,8 @@ export function RosetteMechanism() {
         }
         mirrorAdjacency={mirrorAdjacency}
         setMirrorAdjacency={setMirrorAdjacency}
+        limitMovementToSymmetricalAxis={limitMovementToSymmetricalAxis}
+        setLimitMovementToSymmetricalAxis={toggleLimitMovementToSymmetricalAxis}
         baseLinePointsLength={baseLinePoints.length}
         addHandle={addHandle}
         removeHandle={removeHandle}
