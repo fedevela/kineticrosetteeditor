@@ -15,7 +15,9 @@ import {
   MIN_TILING_SPACING,
 } from "../constants";
 import { snapOrder } from "../math";
+import { getShapeAxisConstraintMode } from "../domains/shape";
 import {
+  BaseState,
   EditorLevel,
   TessellationBranchOrder,
   TessellationSymmetry,
@@ -33,9 +35,13 @@ type RosetteControlsPanelProps = {
   setBaseOrientationDeg: (value: number) => void;
   mirrorAdjacency: boolean;
   setMirrorAdjacency: (value: boolean) => void;
-  limitMovementToSymmetricalAxis: boolean;
-  setLimitMovementToSymmetricalAxis: (value: boolean) => void;
-  baseLinePointsLength: number;
+  baseState: BaseState;
+  setActiveShape: (shapeId: string) => void;
+  setShapeEnabled: (shapeId: string, enabled: boolean) => void;
+  setShapeAxisConstraint: (shapeId: string, enabled: boolean) => void;
+  addShape: () => void;
+  removeShape: (shapeId: string) => void;
+  activeShapePointsLength: number;
   addHandle: () => void;
   removeHandle: () => void;
   resetShape: () => void;
@@ -72,9 +78,13 @@ export function RosetteControlsPanel(props: RosetteControlsPanelProps) {
     setBaseOrientationDeg,
     mirrorAdjacency,
     setMirrorAdjacency,
-    limitMovementToSymmetricalAxis,
-    setLimitMovementToSymmetricalAxis,
-    baseLinePointsLength,
+    baseState,
+    setActiveShape,
+    setShapeEnabled,
+    setShapeAxisConstraint,
+    addShape,
+    removeShape,
+    activeShapePointsLength,
     addHandle,
     removeHandle,
     resetShape,
@@ -103,7 +113,6 @@ export function RosetteControlsPanel(props: RosetteControlsPanelProps) {
   const isRosetteLevel = editorLevel === "rosette";
   const isTilingLevel = editorLevel === "tiling";
   const activeMeta = LEVEL_META[editorLevel];
-
   return (
     <div className="pointer-events-none absolute left-4 top-4 z-10 w-[27rem] rounded-md border border-zinc-600/80 bg-zinc-900/85 p-3 text-zinc-100 shadow-lg backdrop-blur-sm">
       <div className="mb-2">
@@ -146,21 +155,52 @@ export function RosetteControlsPanel(props: RosetteControlsPanelProps) {
         {isShapeLevel && (
           <>
             <div className="flex items-center justify-between gap-3 rounded border border-amber-500/30 bg-amber-500/10 px-2 py-1.5">
-              <label htmlFor="limit-sym-axis" className="text-xs text-amber-100">
-                limit movement to symmetrical axis
-              </label>
-              <input
-                id="limit-sym-axis"
-                type="checkbox"
-                checked={limitMovementToSymmetricalAxis}
-                onChange={(event) => setLimitMovementToSymmetricalAxis(event.target.checked)}
-                className="h-4 w-4 accent-amber-400"
-              />
+              <p className="text-xs text-amber-100">Per-stroke toggles</p>
+              <button type="button" onClick={addShape} className="rounded border border-amber-300/60 px-2 py-1 text-[11px] text-amber-100 hover:bg-amber-500/20">Add stroke</button>
+            </div>
+            <div className="max-h-40 space-y-1 overflow-y-auto rounded border border-zinc-700/70 bg-zinc-950/40 p-1.5">
+              {baseState.shapes.map((shape, index) => {
+                const isActive = shape.id === baseState.activeShapeId;
+                const hasAxisConstraint = getShapeAxisConstraintMode(shape) === "endpoints-on-axis";
+                return (
+                  <div key={shape.id} className={`flex items-center justify-between gap-2 rounded px-2 py-1 ${isActive ? "bg-amber-500/20" : "bg-zinc-900/60"}`}>
+                    <button type="button" onClick={() => setActiveShape(shape.id)} className="flex-1 text-left text-xs text-zinc-200">
+                      Stroke {index + 1}
+                    </button>
+                    <label className="flex items-center gap-1 text-[10px] text-zinc-300" title="Endpoints on symmetry axis">
+                      axis
+                      <input
+                        type="checkbox"
+                        checked={hasAxisConstraint}
+                        onChange={(event) => setShapeAxisConstraint(shape.id, event.target.checked)}
+                        className="h-3.5 w-3.5 accent-amber-400"
+                      />
+                    </label>
+                    <label className="flex items-center gap-1 text-[11px] text-zinc-300">
+                      on
+                      <input
+                        type="checkbox"
+                        checked={shape.enabled !== false}
+                        onChange={(event) => setShapeEnabled(shape.id, event.target.checked)}
+                        className="h-3.5 w-3.5 accent-amber-400"
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => removeShape(shape.id)}
+                      disabled={baseState.shapes.length <= 1}
+                      className="rounded border border-zinc-600 px-1.5 py-0.5 text-[11px] text-zinc-200 disabled:opacity-40"
+                    >
+                      Del
+                    </button>
+                  </div>
+                );
+              })}
             </div>
             <div className="flex items-center justify-between gap-2">
               <button type="button" onClick={addHandle} className="rounded border border-zinc-500 px-2 py-1 text-xs text-zinc-200 transition-colors hover:border-zinc-300 hover:bg-zinc-800">Add handle</button>
-              <button type="button" onClick={removeHandle} disabled={baseLinePointsLength <= 2} className="rounded border border-zinc-500 px-2 py-1 text-xs text-zinc-200 transition-colors hover:border-zinc-300 hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-40">Remove handle</button>
-              <span className="text-xs text-zinc-400">handles: {baseLinePointsLength}</span>
+              <button type="button" onClick={removeHandle} disabled={activeShapePointsLength <= 2} className="rounded border border-zinc-500 px-2 py-1 text-xs text-zinc-200 transition-colors hover:border-zinc-300 hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-40">Remove handle</button>
+              <span className="text-xs text-zinc-400">handles: {activeShapePointsLength}</span>
             </div>
             <div className="flex items-center justify-end">
               <button type="button" onClick={resetShape} className="rounded border border-zinc-500 px-2 py-1 text-xs text-zinc-200 transition-colors hover:border-zinc-300 hover:bg-zinc-800">Reset shape</button>

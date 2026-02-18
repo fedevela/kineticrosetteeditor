@@ -1,21 +1,26 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { KonvaEventObject } from "konva/lib/Node";
 import { Circle, Group, Layer, Line, Stage } from "react-konva";
-import { clampScale, zoomToPoint } from "../mathViewport";
+import { clampScale, screenToWorld, zoomToPoint } from "../mathViewport";
 import { flattenPoints, rotatePoint } from "../math";
-import { EditorLevel, Point, Size, TessellationMechanism, Viewport } from "../types";
+import { BaseShape, EditorLevel, Point, Size, TessellationMechanism, Viewport } from "../types";
 
 type RosetteCanvasProps = {
   size: Size;
   center: Point;
   order: number;
   lineThickness: number;
+  baseRotation: number;
   editorLevel: EditorLevel;
   transformedCurves: Point[][];
   rosetteCurvesLocal: Point[][];
+  baseShapes: BaseShape[];
+  activeShapeId: string;
   activeBaseCurve: Point[];
   tessellationMechanism: TessellationMechanism;
   onHandleDrag: (handleIndex: number, point: Point) => void;
+  onInsertPointOnSegment: (shapeId: string, point: Point) => void;
+  onSetActiveShape: (shapeId: string) => void;
 };
 
 export function RosetteCanvas({
@@ -23,12 +28,17 @@ export function RosetteCanvas({
   center,
   order,
   lineThickness,
+  baseRotation,
   editorLevel,
   transformedCurves,
   rosetteCurvesLocal,
+  baseShapes,
+  activeShapeId,
   activeBaseCurve,
   tessellationMechanism,
   onHandleDrag,
+  onInsertPointOnSegment,
+  onSetActiveShape,
 }: RosetteCanvasProps) {
   const stageRef = useRef<import("konva/lib/Stage").Stage | null>(null);
   const [viewport, setViewport] = useState<Viewport>({
@@ -49,7 +59,6 @@ export function RosetteCanvas({
   const guideOpacity = isRosetteLevel ? 0.7 : isShapeLevel ? 0.3 : 0.22;
   const motifStroke = isTilingLevel ? "#c084fc" : "#67e8f9";
   const motifOpacity = isRosetteLevel ? 0.78 : isShapeLevel ? 0.28 : 0.42;
-  const baseOpacity = isShapeLevel ? 1 : 0.4;
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -169,7 +178,7 @@ export function RosetteCanvas({
       onMouseLeave={endPan}
       style={{ cursor: canvasCursor }}
     >
-      <Layer>
+      <Layer listening={false}>
         <Group
           x={viewport.offset.x}
           y={viewport.offset.y}
@@ -271,47 +280,75 @@ export function RosetteCanvas({
               );
             })}
 
-          {activeBaseCurve.length > 1 && (
-            <>
-              <Line
-                points={flattenPoints(activeBaseCurve)}
-                stroke="#f59e0b"
-                strokeWidth={lineThickness + 1.2}
-                lineCap="round"
-                lineJoin="round"
-                opacity={baseOpacity}
-              />
+        </Group>
+      </Layer>
 
-              {isShapeLevel &&
-                activeBaseCurve.map((handle, handleIndex) => (
-                  <Circle
-                    key={`base-handle-${handleIndex}`}
-                    name="base-handle"
-                    x={handle.x}
-                    y={handle.y}
-                    radius={6}
-                    fill="#f59e0b"
-                    stroke="#111827"
-                    strokeWidth={1.5}
-                    draggable
-                    onDragStart={(event) => {
-                      event.cancelBubble = true;
-                      setIsEditingHandle(true);
-                    }}
-                    onDragMove={(event) =>
-                      onHandleDrag(handleIndex, {
-                        x: event.target.x(),
-                        y: event.target.y(),
-                      })
-                    }
-                    onDragEnd={(event) => {
-                      event.cancelBubble = true;
-                      setIsEditingHandle(false);
-                    }}
-                  />
-                ))}
-            </>
-          )}
+      <Layer>
+        <Group
+          x={viewport.offset.x}
+          y={viewport.offset.y}
+          scaleX={viewport.scale}
+          scaleY={viewport.scale}
+        >
+          {isShapeLevel &&
+            baseShapes.map((shape) => {
+              if (shape.points.length <= 1) return null;
+              const color = shape.id === activeShapeId ? "#f59e0b" : "#94a3b8";
+              const oriented = shape.points.map((point) => {
+                const orientedPoint = rotatePoint(point, baseRotation);
+                return { x: center.x + orientedPoint.x, y: center.y + orientedPoint.y };
+              });
+              return (
+                <Line
+                  key={shape.id}
+                  points={flattenPoints(oriented)}
+                  stroke={color}
+                  strokeWidth={shape.id === activeShapeId ? lineThickness + 1.2 : lineThickness}
+                  opacity={shape.id === activeShapeId ? 0.95 : 0.45}
+                  lineCap="round"
+                  lineJoin="round"
+                  onClick={(event) => {
+                    event.cancelBubble = true;
+                    onSetActiveShape(shape.id);
+                    const stage = stageRef.current;
+                    const pointer = stage?.getPointerPosition();
+                    if (!pointer) return;
+                    const worldPoint = screenToWorld(pointer, viewport);
+                    onInsertPointOnSegment(shape.id, worldPoint);
+                  }}
+                />
+              );
+            })}
+
+          {activeBaseCurve.length > 1 &&
+            isShapeLevel &&
+            activeBaseCurve.map((handle, handleIndex) => (
+              <Circle
+                key={`base-handle-${handleIndex}`}
+                name="base-handle"
+                x={handle.x}
+                y={handle.y}
+                radius={6}
+                fill="#f59e0b"
+                stroke="#111827"
+                strokeWidth={1.5}
+                draggable
+                onDragStart={(event) => {
+                  event.cancelBubble = true;
+                  setIsEditingHandle(true);
+                }}
+                onDragMove={(event) =>
+                  onHandleDrag(handleIndex, {
+                    x: event.target.x(),
+                    y: event.target.y(),
+                  })
+                }
+                onDragEnd={(event) => {
+                  event.cancelBubble = true;
+                  setIsEditingHandle(false);
+                }}
+              />
+            ))}
         </Group>
       </Layer>
     </Stage>

@@ -37,13 +37,20 @@ test.describe("Rosette mechanism editor", () => {
     await expectCanvasToBeDrawn(page);
 
     // Shape level interactions
-    await expect(page.getByRole("checkbox", { name: "limit movement to symmetrical axis" })).toBeChecked();
+    await expect(page.getByText("endpoint-on-axis is enforced per shape constraints")).toBeVisible();
     await expect(page.getByText("handles: 5")).toBeVisible();
     await page.getByRole("button", { name: "Add handle" }).click();
     await expect(page.getByText("handles: 6")).toBeVisible();
     await expectCanvasToBeDrawn(page);
 
     await page.getByRole("button", { name: "Remove handle" }).click();
+    await expect(page.getByText("handles: 5")).toBeVisible();
+    await expectCanvasToBeDrawn(page);
+
+    await page.getByRole("button", { name: "Add stroke" }).click();
+    await expect(page.getByRole("button", { name: "Stroke 2" })).toBeVisible();
+    await page.getByRole("button", { name: "Stroke 1" }).click();
+    await page.getByRole("button", { name: "Stroke 2" }).click();
     await expect(page.getByText("handles: 5")).toBeVisible();
     await expectCanvasToBeDrawn(page);
 
@@ -103,7 +110,7 @@ test.describe("Rosette mechanism editor", () => {
     await page.getByRole("button", { name: "Reset all" }).click();
     await expect(page.getByText("Editing: Level 1 — Shape")).toBeVisible();
     await expect(page.getByText("handles: 5")).toBeVisible();
-    await expect(page.getByRole("checkbox", { name: "limit movement to symmetrical axis" })).toBeChecked();
+    await expect(page.getByText("endpoint-on-axis is enforced per shape constraints")).toBeVisible();
     await expectCanvasToBeDrawn(page);
   });
 });

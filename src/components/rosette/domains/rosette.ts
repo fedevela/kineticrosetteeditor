@@ -1,7 +1,7 @@
 import { Point } from "../types";
 import { rotatePoint } from "../math";
 
-export const buildRosetteCurvesLocal = (
+export const buildRosetteCurvesLocalFromPolyline = (
   baseLinePoints: Point[],
   order: number,
   baseRotation: number,
@@ -17,6 +17,16 @@ export const buildRosetteCurvesLocal = (
     });
   });
 };
+
+export const buildRosetteCurvesLocal = (
+  basePolylines: Point[][],
+  order: number,
+  baseRotation: number,
+  mirrorAdjacency: boolean,
+) =>
+  basePolylines.flatMap((points) =>
+    buildRosetteCurvesLocalFromPolyline(points, order, baseRotation, mirrorAdjacency),
+  );
 
 export const transformCurvesToCenter = (curves: Point[][], center: Point) =>
   curves.map((curve) =>

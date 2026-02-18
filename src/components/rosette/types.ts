@@ -8,6 +8,35 @@ export type Point = {
   y: number;
 };
 
+export type ShapeType = "polyline";
+
+export type ShapeStyle = {
+  strokeWidth?: number;
+  dash?: number[];
+  opacity?: number;
+};
+
+export type ShapeConstraints = {
+  endpointOnSymmetryAxis?: boolean;
+  mirrorPairs?: Array<[number, number]>;
+  snapToAxisThresholdPx?: number;
+};
+
+export type BaseShape = {
+  id: string;
+  type: ShapeType;
+  points: Point[];
+  isClosed?: boolean;
+  enabled?: boolean;
+  style?: ShapeStyle;
+  constraints?: ShapeConstraints;
+};
+
+export type BaseState = {
+  activeShapeId: string;
+  shapes: BaseShape[];
+};
+
 export type Viewport = {
   scale: number;
   offset: Point;
