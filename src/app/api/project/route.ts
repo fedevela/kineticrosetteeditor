@@ -7,10 +7,44 @@ export const runtime = "nodejs";
 
 const getDefaultState = () => createDefaultProjectState();
 
+const normalizeState = (input: unknown): RosetteProjectState => {
+  const defaults = getDefaultState();
+  if (!input || typeof input !== "object") return defaults;
+
+  const candidate = input as Record<string, unknown>;
+  const migratedSliceState = (() => {
+    const nextSliceState = candidate.sliceState as Record<string, unknown> | undefined;
+    if (nextSliceState && Array.isArray(nextSliceState.sprites)) {
+      const sprites = nextSliceState.sprites;
+      const activeSpriteId =
+        typeof nextSliceState.activeSpriteId === "string"
+          ? nextSliceState.activeSpriteId
+          : (sprites[0] as { id?: string } | undefined)?.id;
+      return { activeSpriteId: activeSpriteId ?? defaults.sliceState.activeSpriteId, sprites };
+    }
+
+    const legacyBaseState = candidate.baseState as Record<string, unknown> | undefined;
+    if (!legacyBaseState || !Array.isArray(legacyBaseState.shapes)) return defaults.sliceState;
+
+    const sprites = legacyBaseState.shapes;
+    const activeSpriteId =
+      typeof legacyBaseState.activeShapeId === "string"
+        ? legacyBaseState.activeShapeId
+        : (sprites[0] as { id?: string } | undefined)?.id;
+    return { activeSpriteId: activeSpriteId ?? defaults.sliceState.activeSpriteId, sprites };
+  })();
+
+  return {
+    ...defaults,
+    ...candidate,
+    sliceState: migratedSliceState,
+  } as RosetteProjectState;
+};
+
 const safeParseState = (input: string | undefined): RosetteProjectState => {
   if (!input) return getDefaultState();
   try {
-    return JSON.parse(input) as RosetteProjectState;
+    return normalizeState(JSON.parse(input));
   } catch {
     return getDefaultState();
   }

@@ -9,18 +9,18 @@ import {
 import { RosetteControlsPanel } from "./rosette/components/RosetteControlsPanel";
 import { EditingBadge } from "./rosette/components/EditingBadge";
 import { RosetteCanvas } from "./rosette/components/RosetteCanvas";
-import { buildRosetteCurvesLocal, transformCurvesToCenter } from "./rosette/domains/rosette";
+import { buildRosetteCurvesFromSlice, transformCurvesToCenter } from "./rosette/domains/rosette";
 import {
   addPoint,
-  addShape,
-  getActiveShape,
+  addSprite,
+  getActiveSprite,
   removePoint,
-  removeShape,
-  setActiveShape,
-  setShapeAxisConstraintMode,
-  setShapeEnabled,
+  removeSprite,
+  setActiveSprite,
+  setSpriteAxisConstraintMode,
+  setSpriteEnabled,
   updateHandleLocal,
-} from "./rosette/domains/shape";
+} from "./rosette/domains/sprite";
 import { buildTessellationMechanism, buildTilingCells } from "./rosette/domains/tessellation";
 import { rotatePoint, toRad } from "./rosette/math";
 import { createDefaultProjectState } from "./rosette/projectState";
@@ -53,7 +53,7 @@ export function RosetteMechanism() {
     lineThickness,
     baseOrientationDeg,
     mirrorAdjacency,
-    baseState,
+    sliceState,
     tilingLattice,
     tilingSpacing,
     tilingRings,
@@ -156,29 +156,32 @@ export function RosetteMechanism() {
 
   const center = useMemo(() => ({ x: size.width / 2, y: size.height / 2 }), [size]);
   const baseRotation = useMemo(() => toRad(baseOrientationDeg), [baseOrientationDeg]);
-  const activeShape = useMemo(() => getActiveShape(baseState), [baseState]);
-  const enabledPolylines = useMemo(
-    () => baseState.shapes.filter((shape) => shape.enabled !== false).map((shape) => shape.points),
-    [baseState.shapes],
+  const activeSprite = useMemo(() => getActiveSprite(sliceState), [sliceState]);
+  const enabledSpritePolylines = useMemo(
+    () =>
+      sliceState.sprites
+        .filter((sprite) => sprite.enabled !== false)
+        .map((sprite) => sprite.points),
+    [sliceState.sprites],
   );
 
-  const rosetteCurvesLocal = useMemo(
-    () => buildRosetteCurvesLocal(enabledPolylines, order, baseRotation, mirrorAdjacency),
-    [enabledPolylines, order, baseRotation, mirrorAdjacency],
+  const rosetteCurvesFromSlice = useMemo(
+    () => buildRosetteCurvesFromSlice(enabledSpritePolylines, order, baseRotation, mirrorAdjacency),
+    [enabledSpritePolylines, order, baseRotation, mirrorAdjacency],
   );
 
   const transformedCurves = useMemo(
-    () => transformCurvesToCenter(rosetteCurvesLocal, center),
-    [rosetteCurvesLocal, center],
+    () => transformCurvesToCenter(rosetteCurvesFromSlice, center),
+    [rosetteCurvesFromSlice, center],
   );
 
-  const activeBaseCurve = useMemo(() => {
-    if (!activeShape) return [];
-    return activeShape.points.map((point) => {
+  const activeSpriteCurve = useMemo(() => {
+    if (!activeSprite) return [];
+    return activeSprite.points.map((point) => {
       const oriented = rotatePoint(point, baseRotation);
       return { x: center.x + oriented.x, y: center.y + oriented.y };
     });
-  }, [activeShape, baseRotation, center]);
+  }, [activeSprite, baseRotation, center]);
 
   const tilingCells = useMemo(
     () => buildTilingCells(tilingLattice, tilingRings, tilingSpacing),
@@ -208,13 +211,13 @@ export function RosetteMechanism() {
     ],
   );
 
-  const updateBaseHandle = (handleIndex: number, globalPoint: Point) => {
-    if (editorLevel !== "shape" || !activeShape) return;
+  const updateSpriteHandle = (handleIndex: number, globalPoint: Point) => {
+    if (editorLevel !== "shape" || !activeSprite) return;
     commit((current) => ({
       ...current,
-      baseState: updateHandleLocal(
-        current.baseState,
-        activeShape.id,
+      sliceState: updateHandleLocal(
+        current.sliceState,
+        activeSprite.id,
         handleIndex,
         globalPoint,
         center,
@@ -224,22 +227,22 @@ export function RosetteMechanism() {
   };
 
   const addHandle = () => {
-    if (editorLevel !== "shape" || !activeShape) return;
+    if (editorLevel !== "shape" || !activeSprite) return;
     commit((current) => ({
       ...current,
-      baseState: addPoint(current.baseState, activeShape.id, { type: "append" }),
+      sliceState: addPoint(current.sliceState, activeSprite.id, { type: "append" }),
     }));
   };
 
   const removeHandle = () => {
-    if (editorLevel !== "shape" || !activeShape) return;
+    if (editorLevel !== "shape" || !activeSprite) return;
     commit((current) => ({
       ...current,
-      baseState: removePoint(current.baseState, activeShape.id, "last"),
+      sliceState: removePoint(current.sliceState, activeSprite.id, "last"),
     }));
   };
 
-  const insertHandleOnSegment = (shapeId: string, globalPoint: Point) => {
+  const insertHandleOnSegment = (spriteId: string, globalPoint: Point) => {
     if (editorLevel !== "shape") return;
     const centeredPoint = {
       x: globalPoint.x - center.x,
@@ -248,12 +251,21 @@ export function RosetteMechanism() {
     const localPoint = rotatePoint(centeredPoint, -baseRotation);
     commit((current) => ({
       ...current,
-      baseState: addPoint(current.baseState, shapeId, {
+      sliceState: addPoint(current.sliceState, spriteId, {
         type: "insert-on-segment",
         point: localPoint,
         tolerance: 24,
       }),
     }));
+  };
+
+  const resetProject = () => {
+    if (!window.confirm("Reset project to defaults? This will discard current edits.")) return;
+    setHistory({
+      past: [],
+      present: createDefaultProjectState(),
+      future: [],
+    });
   };
 
   const activeMeta = LEVEL_META[editorLevel];
@@ -276,31 +288,31 @@ export function RosetteMechanism() {
         }
         mirrorAdjacency={mirrorAdjacency}
         setMirrorAdjacency={(value) => commit((current) => ({ ...current, mirrorAdjacency: value }))}
-        baseState={baseState}
-        setActiveShape={(shapeId) =>
-          commit((current) => ({ ...current, baseState: setActiveShape(current.baseState, shapeId) }))
+        sliceState={sliceState}
+        setActiveSprite={(spriteId) =>
+          commit((current) => ({ ...current, sliceState: setActiveSprite(current.sliceState, spriteId) }))
         }
-        setShapeEnabled={(shapeId, enabled) =>
+        setSpriteEnabled={(spriteId, enabled) =>
           commit((current) => ({
             ...current,
-            baseState: setShapeEnabled(current.baseState, shapeId, enabled),
+            sliceState: setSpriteEnabled(current.sliceState, spriteId, enabled),
           }))
         }
-        setShapeAxisConstraint={(shapeId, enabled) =>
+        setSpriteAxisConstraint={(spriteId, enabled) =>
           commit((current) => ({
             ...current,
-            baseState: setShapeAxisConstraintMode(
-              current.baseState,
-              shapeId,
+            sliceState: setSpriteAxisConstraintMode(
+              current.sliceState,
+              spriteId,
               enabled ? "endpoints-on-axis" : "none",
             ),
           }))
         }
-        addShape={() => commit((current) => ({ ...current, baseState: addShape(current.baseState) }))}
-        removeShape={(shapeId) =>
-          commit((current) => ({ ...current, baseState: removeShape(current.baseState, shapeId) }))
+        addSprite={() => commit((current) => ({ ...current, sliceState: addSprite(current.sliceState) }))}
+        removeSprite={(spriteId) =>
+          commit((current) => ({ ...current, sliceState: removeSprite(current.sliceState, spriteId) }))
         }
-        activeShapePointsLength={activeShape?.points.length ?? 0}
+        activeSpritePointsLength={activeSprite?.points.length ?? 0}
         addHandle={addHandle}
         removeHandle={removeHandle}
         tilingLattice={tilingLattice}
@@ -327,6 +339,7 @@ export function RosetteMechanism() {
         canRedo={history.future.length > 0}
         undo={undo}
         redo={redo}
+        onResetProject={resetProject}
       />
 
       <EditingBadge activeMeta={activeMeta} />
@@ -339,15 +352,15 @@ export function RosetteMechanism() {
         baseRotation={baseRotation}
         editorLevel={editorLevel}
         transformedCurves={transformedCurves}
-        rosetteCurvesLocal={rosetteCurvesLocal}
-        baseShapes={baseState.shapes}
-        activeShapeId={baseState.activeShapeId}
-        activeBaseCurve={activeBaseCurve}
+        rosetteCurvesFromSlice={rosetteCurvesFromSlice}
+        sprites={sliceState.sprites}
+        activeSpriteId={sliceState.activeSpriteId}
+        activeSpriteCurve={activeSpriteCurve}
         tessellationMechanism={tessellationMechanism}
-        onHandleDrag={updateBaseHandle}
+        onHandleDrag={updateSpriteHandle}
         onInsertPointOnSegment={insertHandleOnSegment}
-        onSetActiveShape={(shapeId) =>
-          commit((current) => ({ ...current, baseState: setActiveShape(current.baseState, shapeId) }))
+        onSetActiveSprite={(spriteId) =>
+          commit((current) => ({ ...current, sliceState: setActiveSprite(current.sliceState, spriteId) }))
         }
       />
     </div>

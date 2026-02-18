@@ -1,8 +1,8 @@
 import { Point } from "../types";
 import { rotatePoint } from "../math";
 
-export const buildRosetteCurvesLocalFromPolyline = (
-  baseLinePoints: Point[],
+export const buildRosetteCurvesFromSpritePolyline = (
+  spritePolylinePoints: Point[],
   order: number,
   baseRotation: number,
   mirrorAdjacency: boolean,
@@ -11,21 +11,21 @@ export const buildRosetteCurvesLocalFromPolyline = (
     const rotation = baseRotation + (index * 2 * Math.PI) / order;
     const mirrored = mirrorAdjacency && index % 2 === 1;
 
-    return baseLinePoints.map((point) => {
+    return spritePolylinePoints.map((point) => {
       const mirroredPoint = mirrored ? { x: -point.x, y: point.y } : point;
       return rotatePoint(mirroredPoint, rotation);
     });
   });
 };
 
-export const buildRosetteCurvesLocal = (
-  basePolylines: Point[][],
+export const buildRosetteCurvesFromSlice = (
+  spritePolylines: Point[][],
   order: number,
   baseRotation: number,
   mirrorAdjacency: boolean,
 ) =>
-  basePolylines.flatMap((points) =>
-    buildRosetteCurvesLocalFromPolyline(points, order, baseRotation, mirrorAdjacency),
+  spritePolylines.flatMap((points) =>
+    buildRosetteCurvesFromSpritePolyline(points, order, baseRotation, mirrorAdjacency),
   );
 
 export const transformCurvesToCenter = (curves: Point[][], center: Point) =>

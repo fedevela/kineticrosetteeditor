@@ -46,9 +46,9 @@ export const DEFAULT_BASE_LINE: Point[] = [
 
 export const LEVEL_META: Record<EditorLevel, LevelMeta> = {
   shape: {
-    title: "Slices Domain",
-    shortTitle: "Slices",
-    description: "Edit the seed geometry only (handles and base curve).",
+    title: "Sprite + Slice Domain",
+    shortTitle: "Sprite",
+    description: "Edit sprites that compose the slice motif (handles, enable, axis constraints).",
     buttonClass: "border-amber-400/70 bg-amber-500/15 text-amber-200",
     badgeClass: "border-amber-400/70 bg-amber-500/15 text-amber-200",
     accentTextClass: "text-amber-300",

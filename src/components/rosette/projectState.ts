@@ -8,7 +8,7 @@ import {
   DEFAULT_TILING_RINGS,
   DEFAULT_TILING_SPACING,
 } from "./constants";
-import { resetBaseState } from "./domains/shape";
+import { resetSliceState } from "./domains/sprite";
 import { RosetteProjectState } from "./types";
 
 export const createDefaultProjectState = (): RosetteProjectState => ({
@@ -17,7 +17,7 @@ export const createDefaultProjectState = (): RosetteProjectState => ({
   lineThickness: DEFAULT_LINE_THICKNESS,
   baseOrientationDeg: BASE_ORIENTATION_DEG,
   mirrorAdjacency: true,
-  baseState: resetBaseState(),
+  sliceState: resetSliceState(),
   tilingLattice: "hex",
   tilingSpacing: DEFAULT_TILING_SPACING,
   tilingRings: DEFAULT_TILING_RINGS,

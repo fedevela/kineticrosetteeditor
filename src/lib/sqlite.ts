@@ -2,7 +2,15 @@ import fs from "node:fs";
 import path from "node:path";
 import sqlite3 from "sqlite3";
 
-const DB_PATH = path.join(process.cwd(), "data", "rosette.db");
+const resolveDbPath = () => {
+  const configuredPath = process.env.ROSETTE_DB_PATH;
+  if (!configuredPath) return path.join(process.cwd(), "data", "rosette.db");
+  return path.isAbsolute(configuredPath)
+    ? configuredPath
+    : path.join(process.cwd(), configuredPath);
+};
+
+const DB_PATH = resolveDbPath();
 
 let dbInstance: sqlite3.Database | null = null;
 

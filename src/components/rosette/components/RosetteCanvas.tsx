@@ -3,7 +3,7 @@ import type { KonvaEventObject } from "konva/lib/Node";
 import { Circle, Group, Layer, Line, Stage } from "react-konva";
 import { clampScale, screenToWorld, zoomToPoint } from "../mathViewport";
 import { flattenPoints, rotatePoint } from "../math";
-import { BaseShape, EditorLevel, Point, Size, TessellationMechanism, Viewport } from "../types";
+import { EditorLevel, Point, Size, Sprite, TessellationMechanism, Viewport } from "../types";
 
 type RosetteCanvasProps = {
   size: Size;
@@ -13,14 +13,14 @@ type RosetteCanvasProps = {
   baseRotation: number;
   editorLevel: EditorLevel;
   transformedCurves: Point[][];
-  rosetteCurvesLocal: Point[][];
-  baseShapes: BaseShape[];
-  activeShapeId: string;
-  activeBaseCurve: Point[];
+  rosetteCurvesFromSlice: Point[][];
+  sprites: Sprite[];
+  activeSpriteId: string;
+  activeSpriteCurve: Point[];
   tessellationMechanism: TessellationMechanism;
   onHandleDrag: (handleIndex: number, point: Point) => void;
-  onInsertPointOnSegment: (shapeId: string, point: Point) => void;
-  onSetActiveShape: (shapeId: string) => void;
+  onInsertPointOnSegment: (spriteId: string, point: Point) => void;
+  onSetActiveSprite: (spriteId: string) => void;
 };
 
 export function RosetteCanvas({
@@ -31,14 +31,14 @@ export function RosetteCanvas({
   baseRotation,
   editorLevel,
   transformedCurves,
-  rosetteCurvesLocal,
-  baseShapes,
-  activeShapeId,
-  activeBaseCurve,
+  rosetteCurvesFromSlice,
+  sprites,
+  activeSpriteId,
+  activeSpriteCurve,
   tessellationMechanism,
   onHandleDrag,
   onInsertPointOnSegment,
-  onSetActiveShape,
+  onSetActiveSprite,
 }: RosetteCanvasProps) {
   const stageRef = useRef<import("konva/lib/Stage").Stage | null>(null);
   const [viewport, setViewport] = useState<Viewport>({
@@ -224,7 +224,7 @@ export function RosetteCanvas({
 
               return (
                 <Group key={`tiling-cell-${pose.id}-${cellIndex}`}>
-                  {rosetteCurvesLocal.map((curve, curveIndex) => (
+                  {rosetteCurvesFromSlice.map((curve, curveIndex) => (
                     <Line
                       key={`tiling-cell-${pose.id}-${curveIndex}`}
                       points={flattenPoints(
@@ -291,38 +291,38 @@ export function RosetteCanvas({
           scaleY={viewport.scale}
         >
           {isShapeLevel &&
-            baseShapes.map((shape) => {
-              if (shape.points.length <= 1) return null;
-              const color = shape.id === activeShapeId ? "#f59e0b" : "#94a3b8";
-              const oriented = shape.points.map((point) => {
+            sprites.map((sprite) => {
+              if (sprite.points.length <= 1) return null;
+              const color = sprite.id === activeSpriteId ? "#f59e0b" : "#94a3b8";
+              const oriented = sprite.points.map((point) => {
                 const orientedPoint = rotatePoint(point, baseRotation);
                 return { x: center.x + orientedPoint.x, y: center.y + orientedPoint.y };
               });
               return (
                 <Line
-                  key={shape.id}
+                  key={sprite.id}
                   points={flattenPoints(oriented)}
                   stroke={color}
-                  strokeWidth={shape.id === activeShapeId ? lineThickness + 1.2 : lineThickness}
-                  opacity={shape.id === activeShapeId ? 0.95 : 0.45}
+                  strokeWidth={sprite.id === activeSpriteId ? lineThickness + 1.2 : lineThickness}
+                  opacity={sprite.id === activeSpriteId ? 0.95 : 0.45}
                   lineCap="round"
                   lineJoin="round"
                   onClick={(event) => {
                     event.cancelBubble = true;
-                    onSetActiveShape(shape.id);
+                    onSetActiveSprite(sprite.id);
                     const stage = stageRef.current;
                     const pointer = stage?.getPointerPosition();
                     if (!pointer) return;
                     const worldPoint = screenToWorld(pointer, viewport);
-                    onInsertPointOnSegment(shape.id, worldPoint);
+                    onInsertPointOnSegment(sprite.id, worldPoint);
                   }}
                 />
               );
             })}
 
-          {activeBaseCurve.length > 1 &&
+          {activeSpriteCurve.length > 1 &&
             isShapeLevel &&
-            activeBaseCurve.map((handle, handleIndex) => (
+            activeSpriteCurve.map((handle, handleIndex) => (
               <Circle
                 key={`base-handle-${handleIndex}`}
                 name="base-handle"

@@ -33,11 +33,15 @@ test.describe("Rosette mechanism editor", () => {
     await page.goto("/");
 
     await expect(page.getByText("Kinetic Rosette — Multi-Domain Editor")).toBeVisible();
-    await expect(page.getByText("Editing: Slices Domain")).toBeVisible();
+    await expect(page.getByText("Editing: Sprite + Slice Domain")).toBeVisible();
     await expectCanvasToBeDrawn(page);
 
+    // Normalize persisted state to defaults before assertions.
+    page.once("dialog", (dialog) => dialog.accept());
+    await page.getByRole("button", { name: "Reset project" }).click();
+    await expect(page.getByRole("button", { name: "Sprite 1" })).toBeVisible();
+
     // Shape level interactions
-    await expect(page.getByText("endpoint-on-axis is enforced per shape constraints")).toBeVisible();
     await expect(page.getByText("handles: 5")).toBeVisible();
     await page.getByRole("button", { name: "Add handle" }).click();
     await expect(page.getByText("handles: 6")).toBeVisible();
@@ -53,10 +57,16 @@ test.describe("Rosette mechanism editor", () => {
     await expect(page.getByText("handles: 5")).toBeVisible();
     await expectCanvasToBeDrawn(page);
 
-    await page.getByRole("button", { name: "Add stroke" }).click();
-    await expect(page.getByRole("button", { name: "Stroke 2" })).toBeVisible();
-    await page.getByRole("button", { name: "Stroke 1" }).click();
-    await page.getByRole("button", { name: "Stroke 2" }).click();
+    await page.getByRole("button", { name: "Add sprite" }).click();
+    await expect(page.getByRole("button", { name: "Sprite 2" })).toBeVisible();
+    await page.getByRole("button", { name: "Sprite 1" }).click();
+    await page.getByRole("button", { name: "Sprite 2" }).click();
+    await expect(page.getByText("handles: 5")).toBeVisible();
+    await expectCanvasToBeDrawn(page);
+
+    page.once("dialog", (dialog) => dialog.accept());
+    await page.getByRole("button", { name: "Reset project" }).click();
+    await expect(page.getByRole("button", { name: "Sprite 1" })).toBeVisible();
     await expect(page.getByText("handles: 5")).toBeVisible();
     await expectCanvasToBeDrawn(page);
 

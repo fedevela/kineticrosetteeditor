@@ -8,33 +8,33 @@ export type Point = {
   y: number;
 };
 
-export type ShapeType = "polyline";
+export type SpriteType = "polyline";
 
-export type ShapeStyle = {
+export type SpriteStyle = {
   strokeWidth?: number;
   dash?: number[];
   opacity?: number;
 };
 
-export type ShapeConstraints = {
+export type SpriteConstraints = {
   endpointOnSymmetryAxis?: boolean;
   mirrorPairs?: Array<[number, number]>;
   snapToAxisThresholdPx?: number;
 };
 
-export type BaseShape = {
+export type Sprite = {
   id: string;
-  type: ShapeType;
+  type: SpriteType;
   points: Point[];
   isClosed?: boolean;
   enabled?: boolean;
-  style?: ShapeStyle;
-  constraints?: ShapeConstraints;
+  style?: SpriteStyle;
+  constraints?: SpriteConstraints;
 };
 
-export type BaseState = {
-  activeShapeId: string;
-  shapes: BaseShape[];
+export type SliceState = {
+  activeSpriteId: string;
+  sprites: Sprite[];
 };
 
 export type RosetteProjectState = {
@@ -43,7 +43,7 @@ export type RosetteProjectState = {
   lineThickness: number;
   baseOrientationDeg: number;
   mirrorAdjacency: boolean;
-  baseState: BaseState;
+  sliceState: SliceState;
   tilingLattice: TilingLattice;
   tilingSpacing: number;
   tilingRings: number;
