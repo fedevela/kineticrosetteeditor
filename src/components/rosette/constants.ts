@@ -46,24 +46,24 @@ export const DEFAULT_BASE_LINE: Point[] = [
 
 export const LEVEL_META: Record<EditorLevel, LevelMeta> = {
   shape: {
-    title: "Level 1 — Shape",
-    shortTitle: "L1 Shape",
+    title: "Slices Domain",
+    shortTitle: "Slices",
     description: "Edit the seed geometry only (handles and base curve).",
     buttonClass: "border-amber-400/70 bg-amber-500/15 text-amber-200",
     badgeClass: "border-amber-400/70 bg-amber-500/15 text-amber-200",
     accentTextClass: "text-amber-300",
   },
   rosette: {
-    title: "Level 2 — Rosette",
-    shortTitle: "L2 Rosette",
+    title: "Rosette Domain",
+    shortTitle: "Rosette",
     description: "Edit replication rules (order, mirror and motif style).",
     buttonClass: "border-cyan-400/70 bg-cyan-500/15 text-cyan-200",
     badgeClass: "border-cyan-400/70 bg-cyan-500/15 text-cyan-200",
     accentTextClass: "text-cyan-300",
   },
   tiling: {
-    title: "Level 3 — Tiling",
-    shortTitle: "L3 Tiling",
+    title: "Tiling Domain",
+    shortTitle: "Tiling",
     description: "Compose repeated rosette cells into larger tiled patterns.",
     buttonClass: "border-violet-400/70 bg-violet-500/15 text-violet-200",
     badgeClass: "border-violet-400/70 bg-violet-500/15 text-violet-200",

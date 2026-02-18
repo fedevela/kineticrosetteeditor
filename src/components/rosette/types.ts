@@ -37,6 +37,23 @@ export type BaseState = {
   shapes: BaseShape[];
 };
 
+export type RosetteProjectState = {
+  editorLevel: EditorLevel;
+  order: number;
+  lineThickness: number;
+  baseOrientationDeg: number;
+  mirrorAdjacency: boolean;
+  baseState: BaseState;
+  tilingLattice: TilingLattice;
+  tilingSpacing: number;
+  tilingRings: number;
+  interCellRotation: number;
+  tessellationSymmetry: TessellationSymmetry;
+  tessellationBranchOrder: TessellationBranchOrder;
+  foldProgress: number;
+  fixedCellId: string;
+};
+
 export type Viewport = {
   scale: number;
   offset: Point;

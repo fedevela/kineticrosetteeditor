@@ -32,14 +32,20 @@ test.describe("Rosette mechanism editor", () => {
   test("renders and keeps drawing across all controls", async ({ page }) => {
     await page.goto("/");
 
-    await expect(page.getByText("Kinetic Rosette — Multi-Level Editor")).toBeVisible();
-    await expect(page.getByText("Editing: Level 1 — Shape")).toBeVisible();
+    await expect(page.getByText("Kinetic Rosette — Multi-Domain Editor")).toBeVisible();
+    await expect(page.getByText("Editing: Slices Domain")).toBeVisible();
     await expectCanvasToBeDrawn(page);
 
     // Shape level interactions
     await expect(page.getByText("endpoint-on-axis is enforced per shape constraints")).toBeVisible();
     await expect(page.getByText("handles: 5")).toBeVisible();
     await page.getByRole("button", { name: "Add handle" }).click();
+    await expect(page.getByText("handles: 6")).toBeVisible();
+    await expectCanvasToBeDrawn(page);
+
+    await page.getByRole("button", { name: "Undo" }).click();
+    await expect(page.getByText("handles: 5")).toBeVisible();
+    await page.getByRole("button", { name: "Redo" }).click();
     await expect(page.getByText("handles: 6")).toBeVisible();
     await expectCanvasToBeDrawn(page);
 
@@ -55,8 +61,8 @@ test.describe("Rosette mechanism editor", () => {
     await expectCanvasToBeDrawn(page);
 
     // Rosette level interactions
-    await page.getByRole("button", { name: "L2 Rosette" }).click();
-    await expect(page.getByText("Editing: Level 2 — Rosette")).toBeVisible();
+    await page.getByRole("button", { name: "Rosette" }).click();
+    await expect(page.getByText("Editing: Rosette Domain")).toBeVisible();
 
     const orderSlider = page.getByLabel("Rosette order");
     await orderSlider.fill("12");
@@ -72,15 +78,9 @@ test.describe("Rosette mechanism editor", () => {
     await expect(page.getByText("Line thickness").locator("..").getByText("5.0")).toBeVisible();
     await expectCanvasToBeDrawn(page);
 
-    await page.getByRole("button", { name: "Reset rosette" }).click();
-    await expect(page.getByText("Order (n)").locator("..").getByText("8")).toBeVisible();
-    await expect(mirrorCheckbox).toBeChecked();
-    await expect(page.getByText("Line thickness").locator("..").getByText("1.8")).toBeVisible();
-    await expectCanvasToBeDrawn(page);
-
     // Tiling level interactions
-    await page.getByRole("button", { name: /L3 (Tiling|Tessellation)/ }).click();
-    await expect(page.getByText(/Editing: Level 3 — (Tiling|Tessellation)/)).toBeVisible();
+    await page.getByRole("button", { name: "Tiling" }).click();
+    await expect(page.getByText("Editing: Tiling Domain")).toBeVisible();
 
     await page.getByRole("button", { name: "Square grid" }).click();
     await expect(
@@ -100,17 +100,7 @@ test.describe("Rosette mechanism editor", () => {
     ).toBeVisible();
     await expectCanvasToBeDrawn(page);
 
-    await page.getByRole("button", { name: "Reset tiling" }).click();
-    await expect(
-      page.getByText("Tiling hex layout · rings 1 · spacing 220 · translation symmetry."),
-    ).toBeVisible();
-    await expectCanvasToBeDrawn(page);
-
-    // Global reset returns to defaults and keeps drawing
-    await page.getByRole("button", { name: "Reset all" }).click();
-    await expect(page.getByText("Editing: Level 1 — Shape")).toBeVisible();
-    await expect(page.getByText("handles: 5")).toBeVisible();
-    await expect(page.getByText("endpoint-on-axis is enforced per shape constraints")).toBeVisible();
+    // Keep drawing after deep edits and undo/redo controls
     await expectCanvasToBeDrawn(page);
   });
 });

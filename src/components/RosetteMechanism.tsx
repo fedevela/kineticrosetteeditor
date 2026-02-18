@@ -2,17 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  BASE_ORIENTATION_DEG,
-  DEFAULT_FOLD_PROGRESS,
-  DEFAULT_TESSELLATION_BRANCH_ORDER,
-  DEFAULT_TESSELLATION_SYMMETRY,
-  DEFAULT_LINE_THICKNESS,
-  DEFAULT_ORDER,
-  DEFAULT_TILING_RINGS,
-  DEFAULT_TILING_SPACING,
-  LEVEL_META,
   MAX_BASE_ORIENTATION_DEG,
   MIN_BASE_ORIENTATION_DEG,
+  LEVEL_META,
 } from "./rosette/constants";
 import { RosetteControlsPanel } from "./rosette/components/RosetteControlsPanel";
 import { EditingBadge } from "./rosette/components/EditingBadge";
@@ -24,7 +16,6 @@ import {
   getActiveShape,
   removePoint,
   removeShape,
-  resetBaseState,
   setActiveShape,
   setShapeAxisConstraintMode,
   setShapeEnabled,
@@ -32,36 +23,82 @@ import {
 } from "./rosette/domains/shape";
 import { buildTessellationMechanism, buildTilingCells } from "./rosette/domains/tessellation";
 import { rotatePoint, toRad } from "./rosette/math";
-import {
-  BaseState,
-  EditorLevel,
-  Point,
-  Size,
-  TessellationBranchOrder,
-  TessellationSymmetry,
-  TilingLattice,
-} from "./rosette/types";
+import { createDefaultProjectState } from "./rosette/projectState";
+import { Point, RosetteProjectState, Size } from "./rosette/types";
+
+type HistoryState = {
+  past: RosetteProjectState[];
+  present: RosetteProjectState;
+  future: RosetteProjectState[];
+};
+
+const createInitialHistoryState = (): HistoryState => ({
+  past: [],
+  present: createDefaultProjectState(),
+  future: [],
+});
 
 export function RosetteMechanism() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<Size>({ width: 0, height: 0 });
+  const [history, setHistory] = useState<HistoryState>(createInitialHistoryState);
+  const [hasHydrated, setHasHydrated] = useState(false);
+  const isHydratingRef = useRef(false);
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const [editorLevel, setEditorLevel] = useState<EditorLevel>("shape");
-  const [order, setOrder] = useState(DEFAULT_ORDER);
-  const [lineThickness, setLineThickness] = useState(DEFAULT_LINE_THICKNESS);
-  const [baseOrientationDeg, setBaseOrientationDeg] = useState(BASE_ORIENTATION_DEG);
-  const [mirrorAdjacency, setMirrorAdjacency] = useState(true);
-  const [baseState, setBaseState] = useState<BaseState>(resetBaseState);
-  const [tilingLattice, setTilingLattice] = useState<TilingLattice>("hex");
-  const [tilingSpacing, setTilingSpacing] = useState(DEFAULT_TILING_SPACING);
-  const [tilingRings, setTilingRings] = useState(DEFAULT_TILING_RINGS);
-  const [interCellRotation, setInterCellRotation] = useState(0);
-  const [tessellationSymmetry, setTessellationSymmetry] =
-    useState<TessellationSymmetry>(DEFAULT_TESSELLATION_SYMMETRY);
-  const [tessellationBranchOrder, setTessellationBranchOrder] =
-    useState<TessellationBranchOrder>(DEFAULT_TESSELLATION_BRANCH_ORDER);
-  const [foldProgress, setFoldProgress] = useState(DEFAULT_FOLD_PROGRESS);
-  const [fixedCellId, setFixedCellId] = useState("0,0");
+  const projectState = history.present;
+  const {
+    editorLevel,
+    order,
+    lineThickness,
+    baseOrientationDeg,
+    mirrorAdjacency,
+    baseState,
+    tilingLattice,
+    tilingSpacing,
+    tilingRings,
+    interCellRotation,
+    tessellationSymmetry,
+    tessellationBranchOrder,
+    foldProgress,
+    fixedCellId,
+  } = projectState;
+
+  const commit = (updater: (current: RosetteProjectState) => RosetteProjectState) => {
+    setHistory((current) => {
+      const nextPresent = updater(current.present);
+      if (JSON.stringify(nextPresent) === JSON.stringify(current.present)) return current;
+      return {
+        past: [...current.past, current.present],
+        present: nextPresent,
+        future: [],
+      };
+    });
+  };
+
+  const undo = () => {
+    setHistory((current) => {
+      if (current.past.length === 0) return current;
+      const previous = current.past[current.past.length - 1];
+      return {
+        past: current.past.slice(0, -1),
+        present: previous,
+        future: [current.present, ...current.future],
+      };
+    });
+  };
+
+  const redo = () => {
+    setHistory((current) => {
+      if (current.future.length === 0) return current;
+      const [next, ...restFuture] = current.future;
+      return {
+        past: [...current.past, current.present],
+        present: next,
+        future: restFuture,
+      };
+    });
+  };
 
   useEffect(() => {
     const container = containerRef.current;
@@ -76,6 +113,46 @@ export function RosetteMechanism() {
     resizeObserver.observe(container);
     return () => resizeObserver.disconnect();
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    isHydratingRef.current = true;
+    (async () => {
+      try {
+        const response = await fetch("/api/project", { cache: "no-store" });
+        if (!response.ok) return;
+        const data = (await response.json()) as { state?: RosetteProjectState };
+        if (cancelled || !data.state) return;
+        setHistory({ past: [], present: data.state, future: [] });
+      } finally {
+        if (!cancelled) {
+          isHydratingRef.current = false;
+          setHasHydrated(true);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!hasHydrated || isHydratingRef.current) return;
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+
+    saveTimeoutRef.current = setTimeout(() => {
+      void fetch("/api/project", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ state: history.present }),
+      });
+    }, 250);
+
+    return () => {
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    };
+  }, [hasHydrated, history.present]);
 
   const center = useMemo(() => ({ x: size.width / 2, y: size.height / 2 }), [size]);
   const baseRotation = useMemo(() => toRad(baseOrientationDeg), [baseOrientationDeg]);
@@ -133,25 +210,33 @@ export function RosetteMechanism() {
 
   const updateBaseHandle = (handleIndex: number, globalPoint: Point) => {
     if (editorLevel !== "shape" || !activeShape) return;
-    setBaseState((current) =>
-      updateHandleLocal(
-        current,
+    commit((current) => ({
+      ...current,
+      baseState: updateHandleLocal(
+        current.baseState,
         activeShape.id,
         handleIndex,
         globalPoint,
         center,
         baseRotation,
       ),
-    );
+    }));
   };
 
   const addHandle = () => {
     if (editorLevel !== "shape" || !activeShape) return;
-    setBaseState((current) => addPoint(current, activeShape.id, { type: "append" }));
+    commit((current) => ({
+      ...current,
+      baseState: addPoint(current.baseState, activeShape.id, { type: "append" }),
+    }));
   };
+
   const removeHandle = () => {
     if (editorLevel !== "shape" || !activeShape) return;
-    setBaseState((current) => removePoint(current, activeShape.id, "last"));
+    commit((current) => ({
+      ...current,
+      baseState: removePoint(current.baseState, activeShape.id, "last"),
+    }));
   };
 
   const insertHandleOnSegment = (shapeId: string, globalPoint: Point) => {
@@ -161,35 +246,14 @@ export function RosetteMechanism() {
       y: globalPoint.y - center.y,
     };
     const localPoint = rotatePoint(centeredPoint, -baseRotation);
-    setBaseState((current) =>
-      addPoint(current, shapeId, { type: "insert-on-segment", point: localPoint, tolerance: 24 }),
-    );
-  };
-
-  const resetShape = () => {
-    setBaseState(resetBaseState());
-  };
-  const resetRosette = () => {
-    setOrder(DEFAULT_ORDER);
-    setLineThickness(DEFAULT_LINE_THICKNESS);
-    setMirrorAdjacency(true);
-  };
-  const resetTiling = () => {
-    setTilingLattice("hex");
-    setTilingSpacing(DEFAULT_TILING_SPACING);
-    setTilingRings(DEFAULT_TILING_RINGS);
-    setInterCellRotation(0);
-    setBaseOrientationDeg(BASE_ORIENTATION_DEG);
-    setTessellationSymmetry(DEFAULT_TESSELLATION_SYMMETRY);
-    setTessellationBranchOrder(DEFAULT_TESSELLATION_BRANCH_ORDER);
-    setFoldProgress(DEFAULT_FOLD_PROGRESS);
-    setFixedCellId("0,0");
-  };
-  const resetAll = () => {
-    resetShape();
-    resetRosette();
-    resetTiling();
-    setEditorLevel("shape");
+    commit((current) => ({
+      ...current,
+      baseState: addPoint(current.baseState, shapeId, {
+        type: "insert-on-segment",
+        point: localPoint,
+        tolerance: 24,
+      }),
+    }));
   };
 
   const activeMeta = LEVEL_META[editorLevel];
@@ -198,58 +262,71 @@ export function RosetteMechanism() {
     <div ref={containerRef} className="relative h-full w-full">
       <RosetteControlsPanel
         editorLevel={editorLevel}
-        setEditorLevel={setEditorLevel}
+        setEditorLevel={(value) => commit((current) => ({ ...current, editorLevel: value }))}
         order={order}
-        setOrder={setOrder}
+        setOrder={(value) => commit((current) => ({ ...current, order: value }))}
         lineThickness={lineThickness}
-        setLineThickness={setLineThickness}
+        setLineThickness={(value) => commit((current) => ({ ...current, lineThickness: value }))}
         baseOrientationDeg={baseOrientationDeg}
         setBaseOrientationDeg={(value) =>
-          setBaseOrientationDeg(Math.min(MAX_BASE_ORIENTATION_DEG, Math.max(MIN_BASE_ORIENTATION_DEG, value)))
+          commit((current) => ({
+            ...current,
+            baseOrientationDeg: Math.min(MAX_BASE_ORIENTATION_DEG, Math.max(MIN_BASE_ORIENTATION_DEG, value)),
+          }))
         }
         mirrorAdjacency={mirrorAdjacency}
-        setMirrorAdjacency={setMirrorAdjacency}
+        setMirrorAdjacency={(value) => commit((current) => ({ ...current, mirrorAdjacency: value }))}
         baseState={baseState}
-        setActiveShape={(shapeId) => setBaseState((current) => setActiveShape(current, shapeId))}
+        setActiveShape={(shapeId) =>
+          commit((current) => ({ ...current, baseState: setActiveShape(current.baseState, shapeId) }))
+        }
         setShapeEnabled={(shapeId, enabled) =>
-          setBaseState((current) => setShapeEnabled(current, shapeId, enabled))
+          commit((current) => ({
+            ...current,
+            baseState: setShapeEnabled(current.baseState, shapeId, enabled),
+          }))
         }
         setShapeAxisConstraint={(shapeId, enabled) =>
-          setBaseState((current) =>
-            setShapeAxisConstraintMode(
-              current,
+          commit((current) => ({
+            ...current,
+            baseState: setShapeAxisConstraintMode(
+              current.baseState,
               shapeId,
-              enabled
-                ? "endpoints-on-axis"
-                : "none",
+              enabled ? "endpoints-on-axis" : "none",
             ),
-          )
+          }))
         }
-        addShape={() => setBaseState((current) => addShape(current))}
-        removeShape={(shapeId) => setBaseState((current) => removeShape(current, shapeId))}
+        addShape={() => commit((current) => ({ ...current, baseState: addShape(current.baseState) }))}
+        removeShape={(shapeId) =>
+          commit((current) => ({ ...current, baseState: removeShape(current.baseState, shapeId) }))
+        }
         activeShapePointsLength={activeShape?.points.length ?? 0}
         addHandle={addHandle}
         removeHandle={removeHandle}
-        resetShape={resetShape}
-        resetRosette={resetRosette}
         tilingLattice={tilingLattice}
-        setTilingLattice={setTilingLattice}
+        setTilingLattice={(value) => commit((current) => ({ ...current, tilingLattice: value }))}
         tessellationSymmetry={tessellationSymmetry}
-        setTessellationSymmetry={setTessellationSymmetry}
+        setTessellationSymmetry={(value) =>
+          commit((current) => ({ ...current, tessellationSymmetry: value }))
+        }
         tessellationBranchOrder={tessellationBranchOrder}
-        setTessellationBranchOrder={setTessellationBranchOrder}
+        setTessellationBranchOrder={(value) =>
+          commit((current) => ({ ...current, tessellationBranchOrder: value }))
+        }
         tilingRings={tilingRings}
-        setTilingRings={setTilingRings}
+        setTilingRings={(value) => commit((current) => ({ ...current, tilingRings: value }))}
         tilingSpacing={tilingSpacing}
-        setTilingSpacing={setTilingSpacing}
+        setTilingSpacing={(value) => commit((current) => ({ ...current, tilingSpacing: value }))}
         interCellRotation={interCellRotation}
-        setInterCellRotation={setInterCellRotation}
+        setInterCellRotation={(value) => commit((current) => ({ ...current, interCellRotation: value }))}
         foldProgress={foldProgress}
-        setFoldProgress={setFoldProgress}
+        setFoldProgress={(value) => commit((current) => ({ ...current, foldProgress: value }))}
         fixedCellId={fixedCellId}
-        setFixedCellId={setFixedCellId}
-        resetTiling={resetTiling}
-        resetAll={resetAll}
+        setFixedCellId={(value) => commit((current) => ({ ...current, fixedCellId: value }))}
+        canUndo={history.past.length > 0}
+        canRedo={history.future.length > 0}
+        undo={undo}
+        redo={redo}
       />
 
       <EditingBadge activeMeta={activeMeta} />
@@ -269,7 +346,9 @@ export function RosetteMechanism() {
         tessellationMechanism={tessellationMechanism}
         onHandleDrag={updateBaseHandle}
         onInsertPointOnSegment={insertHandleOnSegment}
-        onSetActiveShape={(shapeId) => setBaseState((current) => setActiveShape(current, shapeId))}
+        onSetActiveShape={(shapeId) =>
+          commit((current) => ({ ...current, baseState: setActiveShape(current.baseState, shapeId) }))
+        }
       />
     </div>
   );

@@ -1,5 +1,4 @@
 import {
-  DEFAULT_FOLD_PROGRESS,
   LEVEL_META,
   MAX_BASE_ORIENTATION_DEG,
   MAX_FOLD_PROGRESS,
@@ -44,8 +43,6 @@ type RosetteControlsPanelProps = {
   activeShapePointsLength: number;
   addHandle: () => void;
   removeHandle: () => void;
-  resetShape: () => void;
-  resetRosette: () => void;
   tilingLattice: TilingLattice;
   setTilingLattice: (value: TilingLattice) => void;
   tessellationSymmetry: TessellationSymmetry;
@@ -62,8 +59,10 @@ type RosetteControlsPanelProps = {
   setFoldProgress: (value: number) => void;
   fixedCellId: string;
   setFixedCellId: (value: string) => void;
-  resetTiling: () => void;
-  resetAll: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
+  undo: () => void;
+  redo: () => void;
 };
 
 export function RosetteControlsPanel(props: RosetteControlsPanelProps) {
@@ -87,8 +86,6 @@ export function RosetteControlsPanel(props: RosetteControlsPanelProps) {
     activeShapePointsLength,
     addHandle,
     removeHandle,
-    resetShape,
-    resetRosette,
     tilingLattice,
     setTilingLattice,
     tessellationSymmetry,
@@ -105,8 +102,10 @@ export function RosetteControlsPanel(props: RosetteControlsPanelProps) {
     setFoldProgress,
     fixedCellId,
     setFixedCellId,
-    resetTiling,
-    resetAll,
+    canUndo,
+    canRedo,
+    undo,
+    redo,
   } = props;
 
   const isShapeLevel = editorLevel === "shape";
@@ -116,9 +115,9 @@ export function RosetteControlsPanel(props: RosetteControlsPanelProps) {
   return (
     <div className="pointer-events-none absolute left-4 top-4 z-10 w-[27rem] rounded-md border border-zinc-600/80 bg-zinc-900/85 p-3 text-zinc-100 shadow-lg backdrop-blur-sm">
       <div className="mb-2">
-        <p className="text-xs uppercase tracking-[0.16em] text-zinc-400">Kinetic Rosette — Multi-Level Editor</p>
+        <p className="text-xs uppercase tracking-[0.16em] text-zinc-400">Kinetic Rosette — Multi-Domain Editor</p>
         <p className="mt-1 text-xs text-zinc-400">
-          Separate edits by level: base shape, rosette rules, and tiling composition.
+          Separate edits by domain: base shape, rosette rules, and tiling composition.
         </p>
       </div>
 
@@ -202,9 +201,6 @@ export function RosetteControlsPanel(props: RosetteControlsPanelProps) {
               <button type="button" onClick={removeHandle} disabled={activeShapePointsLength <= 2} className="rounded border border-zinc-500 px-2 py-1 text-xs text-zinc-200 transition-colors hover:border-zinc-300 hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-40">Remove handle</button>
               <span className="text-xs text-zinc-400">handles: {activeShapePointsLength}</span>
             </div>
-            <div className="flex items-center justify-end">
-              <button type="button" onClick={resetShape} className="rounded border border-zinc-500 px-2 py-1 text-xs text-zinc-200 transition-colors hover:border-zinc-300 hover:bg-zinc-800">Reset shape</button>
-            </div>
           </>
         )}
 
@@ -227,9 +223,6 @@ export function RosetteControlsPanel(props: RosetteControlsPanelProps) {
                 <span className="tabular-nums">{lineThickness.toFixed(1)}</span>
               </div>
               <input id="line-thickness" type="range" min={MIN_LINE_THICKNESS} max={MAX_LINE_THICKNESS} step={0.1} value={lineThickness} onChange={(event) => setLineThickness(Number(event.target.value))} className="w-full accent-cyan-400" aria-label="Rosette line thickness" />
-            </div>
-            <div className="flex items-center justify-end gap-2">
-              <button type="button" onClick={resetRosette} className="rounded border border-zinc-500 px-2 py-1 text-xs text-zinc-200 transition-colors hover:border-zinc-300 hover:bg-zinc-800">Reset rosette</button>
             </div>
           </>
         )}
@@ -348,13 +341,6 @@ export function RosetteControlsPanel(props: RosetteControlsPanelProps) {
                 className="w-full accent-violet-400"
                 aria-label="Fold progression"
               />
-              <button
-                type="button"
-                onClick={() => setFoldProgress(DEFAULT_FOLD_PROGRESS)}
-                className="mt-1 rounded border border-zinc-500 px-2 py-1 text-[11px] text-zinc-200 transition-colors hover:border-zinc-300 hover:bg-zinc-800"
-              >
-                Reset fold
-              </button>
             </div>
             <div>
               <div className="mb-1 flex items-center justify-between text-xs text-zinc-300">
@@ -369,9 +355,6 @@ export function RosetteControlsPanel(props: RosetteControlsPanelProps) {
                 className="w-full rounded border border-violet-800/60 bg-violet-950/30 px-2 py-1 text-xs text-violet-100 outline-none focus:border-violet-400"
               />
             </div>
-            <div className="flex items-center justify-end">
-              <button type="button" onClick={resetTiling} className="rounded border border-zinc-500 px-2 py-1 text-xs text-zinc-200 transition-colors hover:border-zinc-300 hover:bg-zinc-800">Reset tiling</button>
-            </div>
           </div>
         )}
 
@@ -384,7 +367,24 @@ export function RosetteControlsPanel(props: RosetteControlsPanelProps) {
                 : "Mirrored neighbors OFF: all sectors share orientation.")}
             {isTilingLevel && `Tiling ${tilingLattice} layout · rings ${tilingRings} · spacing ${tilingSpacing} · ${tessellationSymmetry} symmetry.`}
           </p>
-          <button type="button" onClick={resetAll} className="rounded border border-zinc-500 px-2 py-1 text-xs text-zinc-200 transition-colors hover:border-zinc-300 hover:bg-zinc-800">Reset all</button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={undo}
+              disabled={!canUndo}
+              className="rounded border border-zinc-500 px-2 py-1 text-xs text-zinc-200 transition-colors hover:border-zinc-300 hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Undo
+            </button>
+            <button
+              type="button"
+              onClick={redo}
+              disabled={!canRedo}
+              className="rounded border border-zinc-500 px-2 py-1 text-xs text-zinc-200 transition-colors hover:border-zinc-300 hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Redo
+            </button>
+          </div>
         </div>
       </div>
     </div>
