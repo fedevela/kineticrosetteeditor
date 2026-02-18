@@ -1,114 +1,35 @@
 import {
   LEVEL_META,
-  MAX_BASE_ORIENTATION_DEG,
-  MAX_FOLD_PROGRESS,
-  MAX_LINE_THICKNESS,
-  MAX_ORDER,
-  MAX_TILING_RINGS,
-  MAX_TILING_SPACING,
-  MIN_BASE_ORIENTATION_DEG,
-  MIN_FOLD_PROGRESS,
-  MIN_LINE_THICKNESS,
-  MIN_ORDER,
-  MIN_TILING_RINGS,
-  MIN_TILING_SPACING,
 } from "../constants";
-import { snapOrder } from "../math";
-import { getSpriteAxisConstraintMode } from "../domains/sprite";
-import {
-  EditorLevel,
-  SliceState,
-  TessellationBranchOrder,
-  TessellationSymmetry,
-  TilingLattice,
-} from "../types";
+import { useEditorActions, useEditorHistory, useEditorState } from "../state/editorStore";
+import { getActiveSprite } from "../domains/sprite";
+import { EditorLevelTabs } from "./controls/EditorLevelTabs";
+import { ShapeControls } from "./controls/ShapeControls";
+import { RosetteControls } from "./controls/RosetteControls";
+import { TilingControls } from "./controls/TilingControls";
+import { HistoryControls } from "./controls/HistoryControls";
+export function RosetteControlsPanel() {
+  const state = useEditorState();
+  const actions = useEditorActions();
+  const { canUndo, canRedo } = useEditorHistory();
 
-type RosetteControlsPanelProps = {
-  editorLevel: EditorLevel;
-  setEditorLevel: (level: EditorLevel) => void;
-  order: number;
-  setOrder: (value: number) => void;
-  lineThickness: number;
-  setLineThickness: (value: number) => void;
-  baseOrientationDeg: number;
-  setBaseOrientationDeg: (value: number) => void;
-  mirrorAdjacency: boolean;
-  setMirrorAdjacency: (value: boolean) => void;
-  sliceState: SliceState;
-  setActiveSprite: (spriteId: string) => void;
-  setSpriteEnabled: (spriteId: string, enabled: boolean) => void;
-  setSpriteAxisConstraint: (spriteId: string, enabled: boolean) => void;
-  addSprite: () => void;
-  removeSprite: (spriteId: string) => void;
-  activeSpritePointsLength: number;
-  addHandle: () => void;
-  removeHandle: () => void;
-  tilingLattice: TilingLattice;
-  setTilingLattice: (value: TilingLattice) => void;
-  tessellationSymmetry: TessellationSymmetry;
-  setTessellationSymmetry: (value: TessellationSymmetry) => void;
-  tessellationBranchOrder: TessellationBranchOrder;
-  setTessellationBranchOrder: (value: TessellationBranchOrder) => void;
-  tilingRings: number;
-  setTilingRings: (value: number) => void;
-  tilingSpacing: number;
-  setTilingSpacing: (value: number) => void;
-  interCellRotation: number;
-  setInterCellRotation: (value: number) => void;
-  foldProgress: number;
-  setFoldProgress: (value: number) => void;
-  fixedCellId: string;
-  setFixedCellId: (value: string) => void;
-  canUndo: boolean;
-  canRedo: boolean;
-  undo: () => void;
-  redo: () => void;
-  onResetProject: () => void;
-};
-
-export function RosetteControlsPanel(props: RosetteControlsPanelProps) {
   const {
     editorLevel,
-    setEditorLevel,
     order,
-    setOrder,
     lineThickness,
-    setLineThickness,
     baseOrientationDeg,
-    setBaseOrientationDeg,
     mirrorAdjacency,
-    setMirrorAdjacency,
     sliceState,
-    setActiveSprite,
-    setSpriteEnabled,
-    setSpriteAxisConstraint,
-    addSprite,
-    removeSprite,
-    activeSpritePointsLength,
-    addHandle,
-    removeHandle,
     tilingLattice,
-    setTilingLattice,
     tessellationSymmetry,
-    setTessellationSymmetry,
     tessellationBranchOrder,
-    setTessellationBranchOrder,
     tilingRings,
-    setTilingRings,
     tilingSpacing,
-    setTilingSpacing,
     interCellRotation,
-    setInterCellRotation,
     foldProgress,
-    setFoldProgress,
     fixedCellId,
-    setFixedCellId,
-    canUndo,
-    canRedo,
-    undo,
-    redo,
-    onResetProject,
-  } = props;
+  } = state;
+  const activeSpritePointsLength = getActiveSprite(sliceState)?.points.length ?? 0;
 
   const isShapeLevel = editorLevel === "shape";
   const isRosetteLevel = editorLevel === "rosette";
@@ -124,29 +45,7 @@ export function RosetteControlsPanel(props: RosetteControlsPanelProps) {
       </div>
 
       <div className="pointer-events-auto mt-3 space-y-3">
-        <div className="rounded-md border border-zinc-700 bg-zinc-950/50 p-1">
-          <div className="grid grid-cols-3 gap-1">
-            {(Object.keys(LEVEL_META) as EditorLevel[]).map((level) => {
-              const levelMeta = LEVEL_META[level];
-              const isActive = editorLevel === level;
-
-              return (
-                <button
-                  key={level}
-                  type="button"
-                  onClick={() => setEditorLevel(level)}
-                  className={`rounded border px-2 py-1.5 text-[11px] font-medium transition-colors ${
-                    isActive
-                      ? levelMeta.buttonClass
-                      : "border-zinc-700 bg-zinc-900/70 text-zinc-300 hover:border-zinc-500"
-                  }`}
-                >
-                  {levelMeta.shortTitle}
-                </button>
-              );
-            })}
-          </div>
-        </div>
+        <EditorLevelTabs editorLevel={editorLevel} setEditorLevel={actions.setEditorLevel} />
 
         <div className="rounded-md border border-zinc-700/90 bg-zinc-950/45 p-2">
           <p className={`text-xs font-semibold ${activeMeta.accentTextClass}`}>{activeMeta.title}</p>
@@ -154,210 +53,51 @@ export function RosetteControlsPanel(props: RosetteControlsPanelProps) {
         </div>
 
         {isShapeLevel && (
-          <>
-            <div className="flex items-center justify-between gap-3 rounded border border-amber-500/30 bg-amber-500/10 px-2 py-1.5">
-              <p className="text-xs text-amber-100">Per-sprite toggles</p>
-              <button type="button" onClick={addSprite} className="rounded border border-amber-300/60 px-2 py-1 text-[11px] text-amber-100 hover:bg-amber-500/20">Add sprite</button>
-            </div>
-            <div className="max-h-40 space-y-1 overflow-y-auto rounded border border-zinc-700/70 bg-zinc-950/40 p-1.5">
-              {sliceState.sprites.map((sprite, index) => {
-                const isActive = sprite.id === sliceState.activeSpriteId;
-                const hasAxisConstraint = getSpriteAxisConstraintMode(sprite) === "endpoints-on-axis";
-                return (
-                  <div key={sprite.id} className={`flex items-center justify-between gap-2 rounded px-2 py-1 ${isActive ? "bg-amber-500/20" : "bg-zinc-900/60"}`}>
-                    <button type="button" onClick={() => setActiveSprite(sprite.id)} className="flex-1 text-left text-xs text-zinc-200">
-                      Sprite {index + 1}
-                    </button>
-                    <label className="flex items-center gap-1 text-[10px] text-zinc-300" title="Endpoints on symmetry axis">
-                      axis
-                      <input
-                        type="checkbox"
-                        checked={hasAxisConstraint}
-                        onChange={(event) => setSpriteAxisConstraint(sprite.id, event.target.checked)}
-                        className="h-3.5 w-3.5 accent-amber-400"
-                      />
-                    </label>
-                    <label className="flex items-center gap-1 text-[11px] text-zinc-300">
-                      on
-                      <input
-                        type="checkbox"
-                        checked={sprite.enabled !== false}
-                        onChange={(event) => setSpriteEnabled(sprite.id, event.target.checked)}
-                        className="h-3.5 w-3.5 accent-amber-400"
-                      />
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => removeSprite(sprite.id)}
-                      disabled={sliceState.sprites.length <= 1}
-                      className="rounded border border-zinc-600 px-1.5 py-0.5 text-[11px] text-zinc-200 disabled:opacity-40"
-                    >
-                      Del
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-            <div className="flex items-center justify-between gap-2">
-              <button type="button" onClick={addHandle} className="rounded border border-zinc-500 px-2 py-1 text-xs text-zinc-200 transition-colors hover:border-zinc-300 hover:bg-zinc-800">Add handle</button>
-              <button type="button" onClick={removeHandle} disabled={activeSpritePointsLength <= 2} className="rounded border border-zinc-500 px-2 py-1 text-xs text-zinc-200 transition-colors hover:border-zinc-300 hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-40">Remove handle</button>
-              <span className="text-xs text-zinc-400">handles: {activeSpritePointsLength}</span>
-            </div>
-          </>
+          <ShapeControls
+            sliceState={sliceState}
+            activeSpritePointsLength={activeSpritePointsLength}
+            setActiveSprite={actions.setActiveSprite}
+            setSpriteEnabled={actions.setSpriteEnabled}
+            setSpriteAxisConstraint={actions.setSpriteAxisConstraint}
+            addSprite={actions.addSprite}
+            removeSprite={actions.removeSprite}
+            addHandle={actions.addHandle}
+            removeHandle={actions.removeHandle}
+          />
         )}
 
         {isRosetteLevel && (
-          <>
-            <div>
-              <div className="mb-1 flex items-center justify-between text-xs text-zinc-300">
-                <label htmlFor="order-input">Order (n)</label>
-                <span className="tabular-nums">{order}</span>
-              </div>
-              <input id="order-input" type="range" min={MIN_ORDER} max={MAX_ORDER} step={1} value={order} onChange={(event) => setOrder(snapOrder(Number(event.target.value)))} className="w-full accent-cyan-400" aria-label="Rosette order" />
-            </div>
-            <div className="flex items-center justify-between gap-3">
-              <label htmlFor="mirror-adj" className="text-xs text-zinc-300">Mirror adjacent linkages</label>
-              <input id="mirror-adj" type="checkbox" checked={mirrorAdjacency} onChange={(event) => setMirrorAdjacency(event.target.checked)} className="h-4 w-4 accent-cyan-400" />
-            </div>
-            <div>
-              <div className="mb-1 flex items-center justify-between text-xs text-zinc-300">
-                <label htmlFor="line-thickness">Line thickness</label>
-                <span className="tabular-nums">{lineThickness.toFixed(1)}</span>
-              </div>
-              <input id="line-thickness" type="range" min={MIN_LINE_THICKNESS} max={MAX_LINE_THICKNESS} step={0.1} value={lineThickness} onChange={(event) => setLineThickness(Number(event.target.value))} className="w-full accent-cyan-400" aria-label="Rosette line thickness" />
-            </div>
-          </>
+          <RosetteControls
+            order={order}
+            setOrder={actions.setOrder}
+            mirrorAdjacency={mirrorAdjacency}
+            setMirrorAdjacency={actions.setMirrorAdjacency}
+            lineThickness={lineThickness}
+            setLineThickness={actions.setLineThickness}
+          />
         )}
 
         {isTilingLevel && (
-          <div className="space-y-2 rounded-md border border-violet-500/35 bg-violet-950/20 p-2">
-            <p className="text-xs text-violet-200">Tiling controls</p>
-            <div className="grid grid-cols-2 gap-1">
-              {([
-                ["hex", "Hex lattice"],
-                ["square", "Square grid"],
-              ] as const).map(([value, label]) => {
-                const active = tilingLattice === value;
-                return (
-                  <button key={value} type="button" onClick={() => setTilingLattice(value)} className={`rounded border px-2 py-1 text-[11px] transition-colors ${active ? "border-violet-300/80 bg-violet-500/25 text-violet-100" : "border-violet-800/60 bg-violet-950/30 text-violet-200/80 hover:border-violet-500/70"}`}>
-                    {label}
-                  </button>
-                );
-              })}
-            </div>
-            <div>
-              <p className="mb-1 text-xs text-zinc-300">Symmetry operation</p>
-              <div className="grid grid-cols-3 gap-1">
-                {([
-                  ["translation", "Translation"],
-                  ["reflection", "Reflection"],
-                  ["glide", "Glide"],
-                ] as const).map(([value, label]) => {
-                  const active = tessellationSymmetry === value;
-                  return (
-                    <button
-                      key={value}
-                      type="button"
-                      onClick={() => setTessellationSymmetry(value)}
-                      className={`rounded border px-2 py-1 text-[11px] transition-colors ${active ? "border-violet-300/80 bg-violet-500/25 text-violet-100" : "border-violet-800/60 bg-violet-950/30 text-violet-200/80 hover:border-violet-500/70"}`}
-                    >
-                      {label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-            <div>
-              <p className="mb-1 text-xs text-zinc-300">Branch order</p>
-              <div className="grid grid-cols-3 gap-1">
-                {([
-                  ["ring", "Ring"],
-                  ["spiral", "Spiral"],
-                  ["axis-first", "Axis first"],
-                ] as const).map(([value, label]) => {
-                  const active = tessellationBranchOrder === value;
-                  return (
-                    <button
-                      key={value}
-                      type="button"
-                      onClick={() => setTessellationBranchOrder(value)}
-                      className={`rounded border px-2 py-1 text-[11px] transition-colors ${active ? "border-violet-300/80 bg-violet-500/25 text-violet-100" : "border-violet-800/60 bg-violet-950/30 text-violet-200/80 hover:border-violet-500/70"}`}
-                    >
-                      {label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-            <div>
-              <div className="mb-1 flex items-center justify-between text-xs text-zinc-300">
-                <label htmlFor="tiling-rings">Expansion rings</label>
-                <span className="tabular-nums">{tilingRings}</span>
-              </div>
-              <input id="tiling-rings" type="range" min={MIN_TILING_RINGS} max={MAX_TILING_RINGS} step={1} value={tilingRings} onChange={(event) => setTilingRings(Number(event.target.value))} className="w-full accent-violet-400" aria-label="Expansion rings" />
-            </div>
-            <div>
-              <div className="mb-1 flex items-center justify-between text-xs text-zinc-300">
-                <label htmlFor="tiling-spacing">Cell spacing</label>
-                <span className="tabular-nums">{tilingSpacing}</span>
-              </div>
-              <input id="tiling-spacing" type="range" min={MIN_TILING_SPACING} max={MAX_TILING_SPACING} step={2} value={tilingSpacing} onChange={(event) => setTilingSpacing(Number(event.target.value))} className="w-full accent-violet-400" aria-label="Cell spacing" />
-            </div>
-            <div>
-              <div className="mb-1 flex items-center justify-between text-xs text-zinc-300">
-                <label htmlFor="inter-cell-rotation">Inter-cell rotation</label>
-                <span className="tabular-nums">{interCellRotation}°</span>
-              </div>
-              <input id="inter-cell-rotation" type="range" min={-30} max={30} step={1} value={interCellRotation} onChange={(event) => setInterCellRotation(Number(event.target.value))} className="w-full accent-violet-400" aria-label="Inter-cell rotation" />
-            </div>
-            <div>
-              <div className="mb-1 flex items-center justify-between text-xs text-zinc-300">
-                <label htmlFor="base-orientation">Base rotation</label>
-                <span className="tabular-nums">{baseOrientationDeg}°</span>
-              </div>
-              <input
-                id="base-orientation"
-                type="range"
-                min={MIN_BASE_ORIENTATION_DEG}
-                max={MAX_BASE_ORIENTATION_DEG}
-                step={1}
-                value={baseOrientationDeg}
-                onChange={(event) => setBaseOrientationDeg(Number(event.target.value))}
-                className="w-full accent-violet-400"
-                aria-label="Base rotation"
-              />
-            </div>
-            <div>
-              <div className="mb-1 flex items-center justify-between text-xs text-zinc-300">
-                <label htmlFor="fold-progress">Fold progression</label>
-                <span className="tabular-nums">{Math.round(foldProgress * 100)}%</span>
-              </div>
-              <input
-                id="fold-progress"
-                type="range"
-                min={MIN_FOLD_PROGRESS}
-                max={MAX_FOLD_PROGRESS}
-                step={0.01}
-                value={foldProgress}
-                onChange={(event) => setFoldProgress(Number(event.target.value))}
-                className="w-full accent-violet-400"
-                aria-label="Fold progression"
-              />
-            </div>
-            <div>
-              <div className="mb-1 flex items-center justify-between text-xs text-zinc-300">
-                <label htmlFor="fixed-cell-id">Fixed cell id</label>
-                <span className="text-[11px] text-zinc-400">e.g. 0,0</span>
-              </div>
-              <input
-                id="fixed-cell-id"
-                type="text"
-                value={fixedCellId}
-                onChange={(event) => setFixedCellId(event.target.value)}
-                className="w-full rounded border border-violet-800/60 bg-violet-950/30 px-2 py-1 text-xs text-violet-100 outline-none focus:border-violet-400"
-              />
-            </div>
-          </div>
+          <TilingControls
+            tilingLattice={tilingLattice}
+            setTilingLattice={actions.setTilingLattice}
+            tessellationSymmetry={tessellationSymmetry}
+            setTessellationSymmetry={actions.setTessellationSymmetry}
+            tessellationBranchOrder={tessellationBranchOrder}
+            setTessellationBranchOrder={actions.setTessellationBranchOrder}
+            tilingRings={tilingRings}
+            setTilingRings={actions.setTilingRings}
+            tilingSpacing={tilingSpacing}
+            setTilingSpacing={actions.setTilingSpacing}
+            interCellRotation={interCellRotation}
+            setInterCellRotation={actions.setInterCellRotation}
+            baseOrientationDeg={baseOrientationDeg}
+            setBaseOrientationDeg={actions.setBaseOrientationDeg}
+            foldProgress={foldProgress}
+            setFoldProgress={actions.setFoldProgress}
+            fixedCellId={fixedCellId}
+            setFixedCellId={actions.setFixedCellId}
+          />
         )}
 
         <div className="flex items-center justify-between border-t border-zinc-700/70 pt-2">
@@ -369,31 +109,16 @@ export function RosetteControlsPanel(props: RosetteControlsPanelProps) {
                 : "Mirrored neighbors OFF: all sectors share orientation.")}
             {isTilingLevel && `Tiling ${tilingLattice} layout · rings ${tilingRings} · spacing ${tilingSpacing} · ${tessellationSymmetry} symmetry.`}
           </p>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={onResetProject}
-              className="rounded border border-rose-500/70 px-2 py-1 text-xs text-rose-200 transition-colors hover:bg-rose-900/40"
-            >
-              Reset project
-            </button>
-            <button
-              type="button"
-              onClick={undo}
-              disabled={!canUndo}
-              className="rounded border border-zinc-500 px-2 py-1 text-xs text-zinc-200 transition-colors hover:border-zinc-300 hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              Undo
-            </button>
-            <button
-              type="button"
-              onClick={redo}
-              disabled={!canRedo}
-              className="rounded border border-zinc-500 px-2 py-1 text-xs text-zinc-200 transition-colors hover:border-zinc-300 hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              Redo
-            </button>
-          </div>
+          <HistoryControls
+            canUndo={canUndo}
+            canRedo={canRedo}
+            undo={actions.undo}
+            redo={actions.redo}
+            onResetProject={() => {
+              if (!window.confirm("Reset project to defaults? This will discard current edits.")) return;
+              actions.reset();
+            }}
+          />
         </div>
       </div>
     </div>

@@ -3,43 +3,30 @@ import type { KonvaEventObject } from "konva/lib/Node";
 import { Circle, Group, Layer, Line, Stage } from "react-konva";
 import { clampScale, screenToWorld, zoomToPoint } from "../mathViewport";
 import { flattenPoints, rotatePoint } from "../math";
-import { EditorLevel, Point, Size, Sprite, TessellationMechanism, Viewport } from "../types";
+import { Point, Size, TessellationMechanism, Viewport } from "../types";
+import { useEditorActions, useEditorState } from "../state/editorStore";
+import { useDerivedGeometry } from "../hooks/useDerivedGeometry";
 
 type RosetteCanvasProps = {
   size: Size;
-  center: Point;
-  order: number;
-  lineThickness: number;
-  baseRotation: number;
-  editorLevel: EditorLevel;
-  transformedCurves: Point[][];
-  rosetteCurvesFromSlice: Point[][];
-  sprites: Sprite[];
-  activeSpriteId: string;
-  activeSpriteCurve: Point[];
-  tessellationMechanism: TessellationMechanism;
-  onHandleDrag: (handleIndex: number, point: Point) => void;
-  onInsertPointOnSegment: (spriteId: string, point: Point) => void;
-  onSetActiveSprite: (spriteId: string) => void;
 };
 
-export function RosetteCanvas({
-  size,
-  center,
-  order,
-  lineThickness,
-  baseRotation,
-  editorLevel,
-  transformedCurves,
-  rosetteCurvesFromSlice,
-  sprites,
-  activeSpriteId,
-  activeSpriteCurve,
-  tessellationMechanism,
-  onHandleDrag,
-  onInsertPointOnSegment,
-  onSetActiveSprite,
-}: RosetteCanvasProps) {
+export function RosetteCanvas({ size }: RosetteCanvasProps) {
+  const state = useEditorState();
+  const actions = useEditorActions();
+  const {
+    center,
+    baseRotation,
+    rosetteCurvesFromSlice,
+    transformedCurves,
+    activeSpriteCurve,
+    tessellationMechanism,
+  } = useDerivedGeometry(state, size);
+
+  const { order, lineThickness, editorLevel, sliceState } = state;
+  const sprites = sliceState.sprites;
+  const activeSpriteId = sliceState.activeSpriteId;
+
   const stageRef = useRef<import("konva/lib/Stage").Stage | null>(null);
   const [viewport, setViewport] = useState<Viewport>({
     scale: 1,
@@ -309,12 +296,12 @@ export function RosetteCanvas({
                   lineJoin="round"
                   onClick={(event) => {
                     event.cancelBubble = true;
-                    onSetActiveSprite(sprite.id);
+                    actions.setActiveSprite(sprite.id);
                     const stage = stageRef.current;
                     const pointer = stage?.getPointerPosition();
                     if (!pointer) return;
                     const worldPoint = screenToWorld(pointer, viewport);
-                    onInsertPointOnSegment(sprite.id, worldPoint);
+                    actions.insertHandleOnSegment(sprite.id, worldPoint, center, baseRotation);
                   }}
                 />
               );
@@ -338,10 +325,15 @@ export function RosetteCanvas({
                   setIsEditingHandle(true);
                 }}
                 onDragMove={(event) =>
-                  onHandleDrag(handleIndex, {
-                    x: event.target.x(),
-                    y: event.target.y(),
-                  })
+                  actions.updateSpriteHandle(
+                    handleIndex,
+                    {
+                      x: event.target.x(),
+                      y: event.target.y(),
+                    },
+                    center,
+                    baseRotation,
+                  )
                 }
                 onDragEnd={(event) => {
                   event.cancelBubble = true;
