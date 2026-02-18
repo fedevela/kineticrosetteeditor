@@ -8,6 +8,11 @@ export type Point = {
   y: number;
 };
 
+export type Viewport = {
+  scale: number;
+  offset: Point;
+};
+
 export type EditorLevel = "shape" | "rosette" | "tiling";
 
 export type TilingLattice = "hex" | "square";
