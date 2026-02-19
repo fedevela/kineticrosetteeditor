@@ -2,6 +2,22 @@
 
 An interactive visualization and design environment for exploring rosette patterns and their tessellations through geometric transformation.
 
+## Development
+
+This project runs as a standard React app using **Vite** and **React Router**.
+
+```bash
+npm install
+npm run dev
+```
+
+Production build and preview:
+
+```bash
+npm run build
+npm run start
+```
+
 ## Overview
 
 Rosette patterns are geometric figures characterized by rotational symmetry about a central point. This system implements the mathematical framework described in Beatini's research on kinetic rosette patterns, allowing users to interactively generate, modify, and analyze these structures.

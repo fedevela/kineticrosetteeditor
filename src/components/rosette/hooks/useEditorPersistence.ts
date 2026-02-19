@@ -1,8 +1,8 @@
-"use client";
-
 import { useEffect, useRef, useState } from "react";
 import { RosetteProjectState } from "../types";
 import { HistoryState } from "../state/editorStore";
+
+const STORAGE_KEY = "rosette-project-state";
 
 type UseEditorPersistenceInput = {
   state: RosetteProjectState;
@@ -12,26 +12,28 @@ type UseEditorPersistenceInput = {
 export const useEditorPersistence = ({ state, setHistory }: UseEditorPersistenceInput) => {
   const [hasHydrated, setHasHydrated] = useState(false);
   const isHydratingRef = useRef(false);
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     isHydratingRef.current = true;
 
-    (async () => {
-      try {
-        const response = await fetch("/api/project", { cache: "no-store" });
-        if (!response.ok) return;
-        const data = (await response.json()) as { state?: RosetteProjectState };
-        if (cancelled || !data.state) return;
-        setHistory({ past: [], present: data.state, future: [] });
-      } finally {
+    try {
+      const serializedState = localStorage.getItem(STORAGE_KEY);
+      if (serializedState) {
+        const persistedState = JSON.parse(serializedState) as RosetteProjectState;
         if (!cancelled) {
-          isHydratingRef.current = false;
-          setHasHydrated(true);
+          setHistory({ past: [], present: persistedState, future: [] });
         }
       }
-    })();
+    } catch {
+      // Ignore storage hydration issues and continue with defaults.
+    } finally {
+      if (!cancelled) {
+        isHydratingRef.current = false;
+        setHasHydrated(true);
+      }
+    }
 
     return () => {
       cancelled = true;
@@ -43,11 +45,11 @@ export const useEditorPersistence = ({ state, setHistory }: UseEditorPersistence
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
 
     saveTimeoutRef.current = setTimeout(() => {
-      void fetch("/api/project", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ state }),
-      });
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      } catch {
+        // Ignore storage write issues (e.g. quota).
+      }
     }, 250);
 
     return () => {

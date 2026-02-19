@@ -1,5 +1,3 @@
-"use client";
-
 import { RosetteEditorProvider, useEditorActions, useEditorState } from "./rosette/state/editorStore";
 import { RosetteControlsPanel } from "./rosette/components/RosetteControlsPanel";
 import { EditingBadge } from "./rosette/components/EditingBadge";
