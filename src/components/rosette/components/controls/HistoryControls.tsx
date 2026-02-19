@@ -8,11 +8,11 @@ type HistoryControlsProps = {
 
 export function HistoryControls({ canUndo, canRedo, undo, redo, onResetProject }: HistoryControlsProps) {
   return (
-    <div className="row">
+    <div className="flex items-center gap-2">
       <button
         type="button"
         onClick={onResetProject}
-        className="btn btn-sm kr-control danger-btn"
+        className="rounded-md border border-rose-400/70 bg-slate-800/70 px-2 py-1 text-[11px] text-rose-200 transition hover:bg-rose-900/40"
       >
         Reset project
       </button>
@@ -20,7 +20,7 @@ export function HistoryControls({ canUndo, canRedo, undo, redo, onResetProject }
         type="button"
         onClick={undo}
         disabled={!canUndo}
-        className="btn btn-sm kr-control is-disabled-when-needed"
+        className="rounded-md border border-white/10 bg-slate-800/70 px-2 py-1 text-[11px] text-slate-100 transition hover:border-white/20 hover:bg-slate-700/70 disabled:cursor-not-allowed disabled:opacity-40"
       >
         Undo
       </button>
@@ -28,7 +28,7 @@ export function HistoryControls({ canUndo, canRedo, undo, redo, onResetProject }
         type="button"
         onClick={redo}
         disabled={!canRedo}
-        className="btn btn-sm kr-control is-disabled-when-needed"
+        className="rounded-md border border-white/10 bg-slate-800/70 px-2 py-1 text-[11px] text-slate-100 transition hover:border-white/20 hover:bg-slate-700/70 disabled:cursor-not-allowed disabled:opacity-40"
       >
         Redo
       </button>

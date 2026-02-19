@@ -39,20 +39,20 @@ export function RosetteControlsPanel() {
   const isTilingLevel = editorLevel === "tiling";
   const activeMeta = LEVEL_META[editorLevel];
   return (
-    <div className="kr-glass-panel rosette-controls-panel">
+    <div className="pointer-events-none absolute left-4 top-4 z-10 w-[27rem] rounded-xl border border-white/20 bg-slate-950/70 p-3 text-slate-100 shadow-[0_20px_60px_rgba(2,6,23,0.55)] backdrop-blur-xl">
       <div>
-        <p className="panel-eyebrow">Kinetic Rosette — Multi-Domain Editor</p>
-        <p className="panel-subtext">
+        <p className="text-xs uppercase tracking-[0.16em] text-slate-300/80">Kinetic Rosette — Multi-Domain Editor</p>
+        <p className="mt-1 text-xs text-slate-300/80">
           Separate edits by domain: sprites, slice composition, rosette rules, and tiling.
         </p>
       </div>
 
-      <div className="controls-stack">
+      <div className="pointer-events-auto mt-3 flex flex-col gap-3">
         <EditorLevelTabs editorLevel={editorLevel} setEditorLevel={actions.setEditorLevel} />
 
-        <div className="kr-glass-inset panel-card">
+        <div className="rounded-lg border border-white/10 bg-slate-900/65 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.09),0_8px_28px_rgba(2,6,23,0.35)] backdrop-blur-md">
           <p className={activeMeta.accentTextClass}>{activeMeta.title}</p>
-          <p className="small-text">{activeMeta.description}</p>
+          <p className="text-[11px] text-slate-300/80">{activeMeta.description}</p>
         </div>
 
         {isSpriteLevel && (
@@ -113,8 +113,8 @@ export function RosetteControlsPanel() {
           />
         )}
 
-        <div className="row-between section-divider">
-          <p className="small-text">
+        <div className="flex items-center justify-between gap-2 border-t border-white/10 pt-2">
+          <p className="text-[11px] text-slate-300/80">
             {isSpriteLevel && "Edit active sprite handles and Bezier context."}
             {isSliceLevel && "Manage sprites in the slice and choose which sprite is active."}
             {isRosetteLevel &&
