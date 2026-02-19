@@ -1,5 +1,8 @@
 import { LEVEL_META } from "../../constants";
 import { EditorLevel } from "../../types";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { cn } from "@/lib/utils";
+import { ControlCard } from "./ControlPrimitives";
 
 type EditorLevelTabsProps = {
   editorLevel: EditorLevel;
@@ -8,28 +11,30 @@ type EditorLevelTabsProps = {
 
 export function EditorLevelTabs({ editorLevel, setEditorLevel }: EditorLevelTabsProps) {
   return (
-    <div className="rounded-lg border border-white/10 bg-slate-900/65 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.09),0_8px_28px_rgba(2,6,23,0.35)] backdrop-blur-md">
-      <div className="grid grid-cols-3 gap-1">
-        {(Object.keys(LEVEL_META) as EditorLevel[]).map((level) => {
-          const levelMeta = LEVEL_META[level];
-          const isActive = editorLevel === level;
+    <ControlCard>
+      <Tabs value={editorLevel} onValueChange={(value) => setEditorLevel(value as EditorLevel)}>
+        <TabsList className="grid h-auto w-full grid-cols-4 gap-1 bg-transparent p-0">
+          {(Object.keys(LEVEL_META) as EditorLevel[]).map((level) => {
+            const levelMeta = LEVEL_META[level];
+            const isActive = editorLevel === level;
 
-          return (
-            <button
-              key={level}
-              type="button"
-              onClick={() => setEditorLevel(level)}
-              className={`rounded-md border px-2 py-1.5 text-xs transition ${
-                isActive
-                  ? `${levelMeta.buttonClass} ${levelMeta.neonClass}`
-                  : "border-white/10 bg-slate-800/70 text-slate-100 hover:border-white/20 hover:bg-slate-700/70"
-              }`}
-            >
-              {levelMeta.shortTitle}
-            </button>
-          );
-        })}
-      </div>
-    </div>
+            return (
+              <TabsTrigger
+                key={level}
+                value={level}
+                className={cn(
+                  "h-auto rounded-md border px-2 py-1.5 text-xs transition",
+                  isActive
+                    ? `${levelMeta.buttonClass} ${levelMeta.neonClass}`
+                    : "border-white/10 bg-slate-800/70 text-slate-100 hover:border-white/20 hover:bg-slate-700/70 data-[state=active]:border-white/10 data-[state=active]:bg-slate-800/70 data-[state=active]:text-slate-100",
+                )}
+              >
+                {levelMeta.shortTitle}
+              </TabsTrigger>
+            );
+          })}
+        </TabsList>
+      </Tabs>
+    </ControlCard>
   );
 }

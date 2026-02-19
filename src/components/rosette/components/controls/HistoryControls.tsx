@@ -1,3 +1,5 @@
+import { Button } from "@/components/ui/button";
+
 type HistoryControlsProps = {
   canUndo: boolean;
   canRedo: boolean;
@@ -9,29 +11,15 @@ type HistoryControlsProps = {
 export function HistoryControls({ canUndo, canRedo, undo, redo, onResetProject }: HistoryControlsProps) {
   return (
     <div className="flex items-center gap-2">
-      <button
-        type="button"
-        onClick={onResetProject}
-        className="rounded-md border border-rose-400/70 bg-slate-800/70 px-2 py-1 text-[11px] text-rose-200 transition hover:bg-rose-900/40"
-      >
+      <Button type="button" size="sm" variant="destructive" onClick={onResetProject} className="h-7 px-2 text-[11px]">
         Reset project
-      </button>
-      <button
-        type="button"
-        onClick={undo}
-        disabled={!canUndo}
-        className="rounded-md border border-white/10 bg-slate-800/70 px-2 py-1 text-[11px] text-slate-100 transition hover:border-white/20 hover:bg-slate-700/70 disabled:cursor-not-allowed disabled:opacity-40"
-      >
+      </Button>
+      <Button type="button" size="sm" variant="secondary" onClick={undo} disabled={!canUndo} className="h-7 px-2 text-[11px]">
         Undo
-      </button>
-      <button
-        type="button"
-        onClick={redo}
-        disabled={!canRedo}
-        className="rounded-md border border-white/10 bg-slate-800/70 px-2 py-1 text-[11px] text-slate-100 transition hover:border-white/20 hover:bg-slate-700/70 disabled:cursor-not-allowed disabled:opacity-40"
-      >
+      </Button>
+      <Button type="button" size="sm" variant="secondary" onClick={redo} disabled={!canRedo} className="h-7 px-2 text-[11px]">
         Redo
-      </button>
+      </Button>
     </div>
   );
 }
