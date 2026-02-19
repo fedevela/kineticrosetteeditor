@@ -15,7 +15,8 @@ The UI is built around **three editing domains** that map directly to geometry b
 The architecture separates:
 
 - **Pure domain logic** (`src/components/rosette/domains/*`)
-- **State orchestration and composition** (`src/components/RosetteMechanism.tsx`)
+- **State management** (`src/components/rosette/state/editorStore.tsx`)
+- **Feature composition** (`src/components/RosetteMechanism.tsx`)
 - **UI controls + rendering** (`RosetteControlsPanel`, `RosetteCanvas`, `EditingBadge`)
 
 ---
@@ -37,7 +38,7 @@ Defined in `src/components/rosette/types.ts`, initialized in `createDefaultProje
   - `interCellRotation`, `tessellationSymmetry`, `tessellationBranchOrder`
   - `foldProgress`, `fixedCellId`
 
-`RosetteMechanism` stores this state with undo/redo history (`past/present/future`) and persistence through `/api/project`.
+`editorStore` stores this state with undo/redo history (`past/present/future`), while `useEditorPersistence` hydrates/saves it from `localStorage`.
 
 ### 2.2 Shape domain (sprite slice authoring)
 
@@ -104,8 +105,8 @@ Output contract:
 
 `RosetteMechanism` is the stateful orchestrator (`"use client"`) that:
 
-- Owns full project state + history (undo/redo)
-- Hydrates/saves project state via `/api/project`
+- Connects editor state/actions from `RosetteEditorProvider`
+- Hydrates/saves project state via `useEditorPersistence` (`localStorage`)
 - Tracks responsive viewport container size
 - Computes derived geometry with `useMemo`
 - Passes callbacks to controls/canvas
@@ -158,7 +159,7 @@ Key rendering behavior:
 ## 4) UI data flow (interaction to pixels)
 
 1. User action in panel/canvas (slider, checkbox, drag, click).
-2. Callback in `RosetteMechanism` performs `commit(...)` update.
+2. Callback dispatches an action in `editorStore`.
 3. `present` project state changes; history is extended and future stack cleared.
 4. Memoized domain functions recompute derived arrays/mechanism.
 5. `RosetteCanvas` re-renders declaratively from new props.
@@ -206,6 +207,9 @@ This keeps geometry deterministic and testable while keeping rendering concerns 
 ## 6) File map (UI-focused)
 
 - `src/components/RosetteMechanism.tsx` — orchestration, state lifecycle, derived pipeline
+- `src/components/rosette/state/editorStore.tsx` — reducer/actions/history for project state
+- `src/components/rosette/hooks/useEditorPersistence.ts` — localStorage hydration/persistence
+- `src/components/rosette/hooks/useDerivedGeometry.ts` — memoized geometry pipeline
 - `src/components/rosette/components/RosetteControlsPanel.tsx` — domain-specific controls
 - `src/components/rosette/components/RosetteCanvas.tsx` — Konva rendering + direct manipulation
 - `src/components/rosette/components/EditingBadge.tsx` — active mode indicator

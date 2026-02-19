@@ -1,4 +1,4 @@
-# Architecture — Kinetic Rosette Editor (Next.js + Konva)
+# Architecture — Kinetic Rosette Editor (React + Vite + Konva)
 
 This document explains the system technically so it can be reused as context for other LLMs.
 
@@ -6,12 +6,13 @@ This document explains the system technically so it can be reused as context for
 
 ## 1) High-level system view
 
-The application is a **client-side interactive geometric editor** built with **Next.js (App Router)** and rendered with **react-konva/Konva**.
+The application is a **client-side interactive geometric editor** built with **React 19 + Vite + React Router** and rendered with **react-konva/Konva**.
 
 Main architectural split:
 
-- **Application shell**: Next.js page and layout (`src/app/*`)
-- **Orchestration/state layer**: `RosetteMechanism.tsx`
+- **Application shell/routing**: `src/main.tsx`, `src/App.tsx`
+- **Orchestration layer**: `RosetteMechanism.tsx`
+- **State layer**: `rosette/state/editorStore.tsx`
 - **Domain logic (pure geometry functions)**: `src/components/rosette/domains/*`
 - **Presentation layer**:
   - Control surface: `RosetteControlsPanel.tsx`
@@ -21,7 +22,7 @@ Main architectural split:
 Core behavior is event-driven:
 
 1. user interaction (slider/toggle/drag)
-2. state update in `RosetteMechanism`
+2. state update through `editorStore` actions/reducer
 3. memoized domain recomputation (`useMemo` + pure functions)
 4. declarative canvas redraw via React + Konva
 
@@ -37,16 +38,17 @@ The system operates on three compositional levels controlled by `editorLevel: "s
 
 **Key state**:
 
-- `baseLinePoints: Point[]`
-- `limitMovementToSymmetricalAxis: boolean`
+- `sliceState.sprites[]` (multi-sprite local polylines)
+- `sliceState.activeSpriteId`
+- `sprite.axisConstraintMode`
 - `baseOrientationDeg` (used to convert between global and local coordinates when dragging)
 
-**Key domain functions** (`domains/shape.ts`):
+**Key domain functions** (`domains/sprite.ts`):
 
-- `constrainBaseLineToSymmetricalAxis(points)`
-- `updateBaseHandleLocal(current, handleIndex, globalPoint, center, baseRotation, limitMovement...)`
-- `addHandlePoint(current)`
-- `removeHandlePoint(current)`
+- `updateHandleLocal(...)`
+- `addPoint(...)` / `removePoint(...)`
+- `addSprite(...)` / `removeSprite(...)`
+- `setSpriteAxisConstraintMode(...)`
 
 **Important mechanics**:
 
@@ -55,7 +57,7 @@ The system operates on three compositional levels controlled by `editorLevel: "s
 
 **Output of level 1**:
 
-- A validated local seed polyline (`baseLinePoints`) used by Level 2 replication.
+- Validated local sprite polylines (`sliceState.sprites[].points`) used by Level 2 replication.
 
 ## Level 2 — Rosette (Cyclic replication)
 
@@ -70,7 +72,7 @@ The system operates on three compositional levels controlled by `editorLevel: "s
 
 **Key domain functions** (`domains/rosette.ts`):
 
-- `buildRosetteCurvesLocal(baseLinePoints, order, baseRotation, mirrorAdjacency)`
+- `buildRosetteCurvesFromSlice(enabledSpritePolylines, order, baseRotation, mirrorAdjacency)`
 - `transformCurvesToCenter(curves, center)`
 
 **Important mechanics**:
@@ -81,7 +83,7 @@ The system operates on three compositional levels controlled by `editorLevel: "s
 
 **Output of level 2**:
 
-- `rosetteCurvesLocal` (local coordinates)
+- `rosetteCurvesFromSlice` (local coordinates)
 - `transformedCurves` (canvas-centered coordinates)
 
 ## Level 3 — Tiling/Tessellation (Cell composition)
@@ -119,12 +121,13 @@ The system operates on three compositional levels controlled by `editorLevel: "s
 
 ---
 
-## 3) Next.js + Konva rendering architecture
+## 3) React + Konva rendering architecture
 
-## Next.js side
+## React side
 
-- `src/app/page.tsx` renders the full-screen scene and mounts `RosetteMechanism`.
-- `RosetteMechanism` is a client component (`"use client"`) because it uses React state, effects, and pointer interaction.
+- `src/main.tsx` bootstraps React with `BrowserRouter` and global styles.
+- `src/App.tsx` defines routes (`/` and fallback redirect) and mounts `RosetteMechanism`.
+- `RosetteMechanism` wraps the feature in `RosetteEditorProvider`, then composes controls, badge, and canvas.
 
 ## Konva side (`RosetteCanvas.tsx`)
 
@@ -149,17 +152,18 @@ Why Konva here:
 ## 4) Data flow (end-to-end)
 
 1. **Input**: control panel interaction or handle drag.
-2. **State update**: setters in `RosetteMechanism`.
+2. **State update**: actions from `editorStore` reducer (history-aware, undo/redo).
 3. **Derived math**:
    - `baseRotation = toRad(baseOrientationDeg)`
-   - rosette generation (`buildRosetteCurvesLocal`)
+   - rosette generation (`buildRosetteCurvesFromSlice`)
    - centering transform (`transformCurvesToCenter`)
    - tiling cells (`buildTilingCells`)
    - mechanism propagation (`buildTessellationMechanism`)
 4. **Render**: `RosetteCanvas` maps derived arrays into Konva nodes.
 
-Performance strategy:
+Persistence and performance strategy:
 
+- Project state is hydrated/saved from `localStorage` via `useEditorPersistence`.
 - Heavy geometry calculations are isolated in pure functions and consumed with `useMemo`.
 - Rendering is controlled by small state deltas and React reconciliation.
 
@@ -167,17 +171,21 @@ Performance strategy:
 
 ## 5) Source map (where each concern lives)
 
-- `src/app/page.tsx` → app entry page
-- `src/components/RosetteMechanism.tsx` → state orchestration + composition root
+- `src/main.tsx` → app bootstrap
+- `src/App.tsx` → route shell
+- `src/components/RosetteMechanism.tsx` → composition root
+- `src/components/rosette/state/editorStore.tsx` → reducer, actions, undo/redo history
 - `src/components/rosette/components/RosetteControlsPanel.tsx` → UI controls per level
 - `src/components/rosette/components/RosetteCanvas.tsx` → Konva renderer
 - `src/components/rosette/components/EditingBadge.tsx` → active-level indicator
-- `src/components/rosette/domains/shape.ts` → level-1 geometry editing rules
+- `src/components/rosette/domains/sprite.ts` → level-1 geometry editing rules
 - `src/components/rosette/domains/rosette.ts` → level-2 replication transforms
 - `src/components/rosette/domains/tessellation.ts` → level-3 lattice + mechanism propagation
 - `src/components/rosette/constants.ts` → defaults, ranges, level metadata
 - `src/components/rosette/types.ts` → shared types and mechanism contracts
-- `src/components/rosette/math.ts` → math utilities (rotation, flattening, unit conversions)
+- `src/components/rosette/hooks/useDerivedGeometry.ts` → memoized derived pipeline
+- `src/components/rosette/hooks/useEditorPersistence.ts` → local persistence lifecycle
+- `src/components/rosette/math.ts` + `mathViewport.ts` → geometry and viewport utilities
 
 ---
 
@@ -185,11 +193,11 @@ Performance strategy:
 
 Use this when briefing another model:
 
-> This is a Next.js client-side geometric editor with a 3-level architecture.  
-> Level 1 (shape): edit a seed polyline with optional axis constraints.  
+> This is a React + Vite client-side geometric editor with a 3-level architecture.  
+> Level 1 (shape): edit one or more sprite polylines with optional endpoint axis constraints.  
 > Level 2 (rosette): replicate the seed by rotational symmetry order `n` with optional mirrored adjacency.  
 > Level 3 (tiling): place rosette cells on square/hex lattices and propagate orientation via translation/reflection/glide rules.  
-> `RosetteMechanism.tsx` owns state and memoized derived data; pure geometry logic lives in `domains/*`; `RosetteCanvas.tsx` renders via react-konva.
+> `editorStore.tsx` owns reducer/history state; `useDerivedGeometry.ts` computes memoized geometry; pure logic lives in `domains/*`; `RosetteCanvas.tsx` renders via react-konva.
 
 Short glossary:
 
