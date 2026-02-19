@@ -4,9 +4,11 @@ import { useEditorState } from "../state/editorStore";
 export function EditingBadge() {
   const { editorLevel } = useEditorState();
   const activeMeta = LEVEL_META[editorLevel];
+  const neonClass =
+    editorLevel === "shape" ? "kr-neon-amber" : editorLevel === "rosette" ? "kr-neon-cyan" : "kr-neon-lime";
   return (
-    <div className="pointer-events-none absolute right-4 top-4 z-10">
-      <div className={`rounded-md border px-3 py-1.5 text-xs font-medium shadow ${activeMeta.badgeClass}`}>
+    <div className="editing-badge-wrap">
+      <div className={`kr-glass-inset editing-badge ${activeMeta.badgeClass} ${neonClass}`}>
         Editing: {activeMeta.title}
       </div>
     </div>

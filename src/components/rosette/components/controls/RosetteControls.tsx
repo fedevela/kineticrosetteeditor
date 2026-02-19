@@ -24,25 +24,25 @@ export function RosetteControls({
   setLineThickness,
 }: RosetteControlsProps) {
   return (
-    <>
+    <div className="kr-glass-inset control-stack panel-card">
       <div>
-        <div className="mb-1 flex items-center justify-between text-xs text-zinc-300">
+        <div className="row-between control-label-row">
           <label htmlFor="order-input">Order (n)</label>
           <span className="tabular-nums">{order}</span>
         </div>
-        <input id="order-input" type="range" min={MIN_ORDER} max={MAX_ORDER} step={1} value={order} onChange={(event) => setOrder(snapOrder(Number(event.target.value)))} className="w-full accent-cyan-400" aria-label="Rosette order" />
+        <input id="order-input" type="range" min={MIN_ORDER} max={MAX_ORDER} step={1} value={order} onChange={(event) => setOrder(snapOrder(Number(event.target.value)))} className="range-input checkbox-cyan" aria-label="Rosette order" />
       </div>
-      <div className="flex items-center justify-between gap-3">
-        <label htmlFor="mirror-adj" className="text-xs text-zinc-300">Mirror adjacent linkages</label>
-        <input id="mirror-adj" type="checkbox" checked={mirrorAdjacency} onChange={(event) => setMirrorAdjacency(event.target.checked)} className="h-4 w-4 accent-cyan-400" />
+      <div className="row-between">
+        <label htmlFor="mirror-adj" className="control-label">Mirror adjacent linkages</label>
+        <input id="mirror-adj" type="checkbox" checked={mirrorAdjacency} onChange={(event) => setMirrorAdjacency(event.target.checked)} className="checkbox-md checkbox-cyan" />
       </div>
       <div>
-        <div className="mb-1 flex items-center justify-between text-xs text-zinc-300">
+        <div className="row-between control-label-row">
           <label htmlFor="line-thickness">Line thickness</label>
           <span className="tabular-nums">{lineThickness.toFixed(1)}</span>
         </div>
-        <input id="line-thickness" type="range" min={MIN_LINE_THICKNESS} max={MAX_LINE_THICKNESS} step={0.1} value={lineThickness} onChange={(event) => setLineThickness(Number(event.target.value))} className="w-full accent-cyan-400" aria-label="Rosette line thickness" />
+        <input id="line-thickness" type="range" min={MIN_LINE_THICKNESS} max={MAX_LINE_THICKNESS} step={0.1} value={lineThickness} onChange={(event) => setLineThickness(Number(event.target.value))} className="range-input checkbox-cyan" aria-label="Rosette line thickness" />
       </div>
-    </>
+    </div>
   );
 }

@@ -8,21 +8,23 @@ type EditorLevelTabsProps = {
 
 export function EditorLevelTabs({ editorLevel, setEditorLevel }: EditorLevelTabsProps) {
   return (
-    <div className="rounded-md border border-zinc-700 bg-zinc-950/50 p-1">
-      <div className="grid grid-cols-3 gap-1">
+    <div className="kr-glass-inset panel-card">
+      <div className="tabs-grid">
         {(Object.keys(LEVEL_META) as EditorLevel[]).map((level) => {
           const levelMeta = LEVEL_META[level];
           const isActive = editorLevel === level;
+          const neonClass =
+            level === "shape" ? "kr-neon-amber" : level === "rosette" ? "kr-neon-cyan" : "kr-neon-lime";
 
           return (
             <button
               key={level}
               type="button"
               onClick={() => setEditorLevel(level)}
-              className={`rounded border px-2 py-1.5 text-[11px] font-medium transition-colors ${
+              className={`btn ${
                 isActive
-                  ? levelMeta.buttonClass
-                  : "border-zinc-700 bg-zinc-900/70 text-zinc-300 hover:border-zinc-500"
+                  ? `${levelMeta.buttonClass} ${neonClass}`
+                  : "kr-control"
               }`}
             >
               {levelMeta.shortTitle}

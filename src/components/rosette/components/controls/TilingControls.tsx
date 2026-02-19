@@ -52,24 +52,24 @@ export function TilingControls({
   setFixedCellId,
 }: TilingControlsProps) {
   return (
-    <div className="space-y-2 rounded-md border border-violet-500/35 bg-violet-950/20 p-2">
-      <p className="text-xs text-violet-200">Tiling controls</p>
-      <div className="grid grid-cols-2 gap-1">
+    <div className="kr-glass-inset control-stack panel-card">
+      <p className="small-text text-violet-soft">Tiling controls</p>
+      <div className="tiling-grid-2">
         {([
           ["hex", "Hex lattice"],
           ["square", "Square grid"],
         ] as const).map(([value, label]) => {
           const active = tilingLattice === value;
           return (
-            <button key={value} type="button" onClick={() => setTilingLattice(value)} className={`rounded border px-2 py-1 text-[11px] transition-colors ${active ? "border-violet-300/80 bg-violet-500/25 text-violet-100" : "border-violet-800/60 bg-violet-950/30 text-violet-200/80 hover:border-violet-500/70"}`}>
+            <button key={value} type="button" onClick={() => setTilingLattice(value)} className={`btn btn-sm ${active ? "tiling-active" : "kr-control text-violet-soft"}`}>
               {label}
             </button>
           );
         })}
       </div>
       <div>
-        <p className="mb-1 text-xs text-zinc-300">Symmetry operation</p>
-        <div className="grid grid-cols-3 gap-1">
+        <p className="control-label control-label-row">Symmetry operation</p>
+        <div className="tiling-grid-3">
           {([
             ["translation", "Translation"],
             ["reflection", "Reflection"],
@@ -81,7 +81,7 @@ export function TilingControls({
                 key={value}
                 type="button"
                 onClick={() => setTessellationSymmetry(value)}
-                className={`rounded border px-2 py-1 text-[11px] transition-colors ${active ? "border-violet-300/80 bg-violet-500/25 text-violet-100" : "border-violet-800/60 bg-violet-950/30 text-violet-200/80 hover:border-violet-500/70"}`}
+                className={`btn btn-sm ${active ? "tiling-active" : "kr-control text-violet-soft"}`}
               >
                 {label}
               </button>
@@ -90,8 +90,8 @@ export function TilingControls({
         </div>
       </div>
       <div>
-        <p className="mb-1 text-xs text-zinc-300">Branch order</p>
-        <div className="grid grid-cols-3 gap-1">
+        <p className="control-label control-label-row">Branch order</p>
+        <div className="tiling-grid-3">
           {([
             ["ring", "Ring"],
             ["spiral", "Spiral"],
@@ -103,7 +103,7 @@ export function TilingControls({
                 key={value}
                 type="button"
                 onClick={() => setTessellationBranchOrder(value)}
-                className={`rounded border px-2 py-1 text-[11px] transition-colors ${active ? "border-violet-300/80 bg-violet-500/25 text-violet-100" : "border-violet-800/60 bg-violet-950/30 text-violet-200/80 hover:border-violet-500/70"}`}
+                className={`btn btn-sm ${active ? "tiling-active" : "kr-control text-violet-soft"}`}
               >
                 {label}
               </button>
@@ -112,28 +112,28 @@ export function TilingControls({
         </div>
       </div>
       <div>
-        <div className="mb-1 flex items-center justify-between text-xs text-zinc-300">
+        <div className="row-between control-label-row">
           <label htmlFor="tiling-rings">Expansion rings</label>
           <span className="tabular-nums">{tilingRings}</span>
         </div>
-        <input id="tiling-rings" type="range" min={MIN_TILING_RINGS} max={MAX_TILING_RINGS} step={1} value={tilingRings} onChange={(event) => setTilingRings(Number(event.target.value))} className="w-full accent-violet-400" aria-label="Expansion rings" />
+        <input id="tiling-rings" type="range" min={MIN_TILING_RINGS} max={MAX_TILING_RINGS} step={1} value={tilingRings} onChange={(event) => setTilingRings(Number(event.target.value))} className="range-input checkbox-violet" aria-label="Expansion rings" />
       </div>
       <div>
-        <div className="mb-1 flex items-center justify-between text-xs text-zinc-300">
+        <div className="row-between control-label-row">
           <label htmlFor="tiling-spacing">Cell spacing</label>
           <span className="tabular-nums">{tilingSpacing}</span>
         </div>
-        <input id="tiling-spacing" type="range" min={MIN_TILING_SPACING} max={MAX_TILING_SPACING} step={2} value={tilingSpacing} onChange={(event) => setTilingSpacing(Number(event.target.value))} className="w-full accent-violet-400" aria-label="Cell spacing" />
+        <input id="tiling-spacing" type="range" min={MIN_TILING_SPACING} max={MAX_TILING_SPACING} step={2} value={tilingSpacing} onChange={(event) => setTilingSpacing(Number(event.target.value))} className="range-input checkbox-violet" aria-label="Cell spacing" />
       </div>
       <div>
-        <div className="mb-1 flex items-center justify-between text-xs text-zinc-300">
+        <div className="row-between control-label-row">
           <label htmlFor="inter-cell-rotation">Inter-cell rotation</label>
           <span className="tabular-nums">{interCellRotation}°</span>
         </div>
-        <input id="inter-cell-rotation" type="range" min={-30} max={30} step={1} value={interCellRotation} onChange={(event) => setInterCellRotation(Number(event.target.value))} className="w-full accent-violet-400" aria-label="Inter-cell rotation" />
+        <input id="inter-cell-rotation" type="range" min={-30} max={30} step={1} value={interCellRotation} onChange={(event) => setInterCellRotation(Number(event.target.value))} className="range-input checkbox-violet" aria-label="Inter-cell rotation" />
       </div>
       <div>
-        <div className="mb-1 flex items-center justify-between text-xs text-zinc-300">
+        <div className="row-between control-label-row">
           <label htmlFor="base-orientation">Base rotation</label>
           <span className="tabular-nums">{baseOrientationDeg}°</span>
         </div>
@@ -145,12 +145,12 @@ export function TilingControls({
           step={1}
           value={baseOrientationDeg}
           onChange={(event) => setBaseOrientationDeg(Number(event.target.value))}
-          className="w-full accent-violet-400"
+          className="range-input checkbox-violet"
           aria-label="Base rotation"
         />
       </div>
       <div>
-        <div className="mb-1 flex items-center justify-between text-xs text-zinc-300">
+        <div className="row-between control-label-row">
           <label htmlFor="fold-progress">Fold progression</label>
           <span className="tabular-nums">{Math.round(foldProgress * 100)}%</span>
         </div>
@@ -162,21 +162,21 @@ export function TilingControls({
           step={0.01}
           value={foldProgress}
           onChange={(event) => setFoldProgress(Number(event.target.value))}
-          className="w-full accent-violet-400"
+          className="range-input checkbox-violet"
           aria-label="Fold progression"
         />
       </div>
       <div>
-        <div className="mb-1 flex items-center justify-between text-xs text-zinc-300">
+        <div className="row-between control-label-row">
           <label htmlFor="fixed-cell-id">Fixed cell id</label>
-          <span className="text-[11px] text-zinc-400">e.g. 0,0</span>
+          <span className="small-text">e.g. 0,0</span>
         </div>
         <input
           id="fixed-cell-id"
           type="text"
           value={fixedCellId}
           onChange={(event) => setFixedCellId(event.target.value)}
-          className="w-full rounded border border-violet-800/60 bg-violet-950/30 px-2 py-1 text-xs text-violet-100 outline-none focus:border-violet-400"
+          className="kr-control text-input text-violet-soft"
         />
       </div>
     </div>

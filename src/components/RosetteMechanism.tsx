@@ -15,7 +15,7 @@ function RosetteMechanismContent() {
   useEditorPersistence({ state, setHistory: actions.setHistory });
 
   return (
-    <div ref={containerRef} className="relative h-full w-full">
+    <div ref={containerRef} className="rosette-root">
       <RosetteControlsPanel />
       <EditingBadge />
       <RosetteCanvas size={size} />

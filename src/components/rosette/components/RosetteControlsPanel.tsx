@@ -36,20 +36,20 @@ export function RosetteControlsPanel() {
   const isTilingLevel = editorLevel === "tiling";
   const activeMeta = LEVEL_META[editorLevel];
   return (
-    <div className="pointer-events-none absolute left-4 top-4 z-10 w-[27rem] rounded-md border border-zinc-600/80 bg-zinc-900/85 p-3 text-zinc-100 shadow-lg backdrop-blur-sm">
-      <div className="mb-2">
-        <p className="text-xs uppercase tracking-[0.16em] text-zinc-400">Kinetic Rosette — Multi-Domain Editor</p>
-        <p className="mt-1 text-xs text-zinc-400">
+    <div className="kr-glass-panel rosette-controls-panel">
+      <div>
+        <p className="panel-eyebrow">Kinetic Rosette — Multi-Domain Editor</p>
+        <p className="panel-subtext">
           Separate edits by domain: sprites, slice composition, rosette rules, and tiling.
         </p>
       </div>
 
-      <div className="pointer-events-auto mt-3 space-y-3">
+      <div className="controls-stack">
         <EditorLevelTabs editorLevel={editorLevel} setEditorLevel={actions.setEditorLevel} />
 
-        <div className="rounded-md border border-zinc-700/90 bg-zinc-950/45 p-2">
-          <p className={`text-xs font-semibold ${activeMeta.accentTextClass}`}>{activeMeta.title}</p>
-          <p className="mt-1 text-[11px] text-zinc-400">{activeMeta.description}</p>
+        <div className="kr-glass-inset panel-card">
+          <p className={activeMeta.accentTextClass}>{activeMeta.title}</p>
+          <p className="small-text">{activeMeta.description}</p>
         </div>
 
         {isShapeLevel && (
@@ -100,8 +100,8 @@ export function RosetteControlsPanel() {
           />
         )}
 
-        <div className="flex items-center justify-between border-t border-zinc-700/70 pt-2">
-          <p className="text-[11px] text-zinc-400">
+        <div className="row-between section-divider">
+          <p className="small-text">
             {isShapeLevel && "Drag amber handles to author the active sprite in the slice."}
             {isRosetteLevel &&
               (mirrorAdjacency
