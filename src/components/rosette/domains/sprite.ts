@@ -8,6 +8,23 @@ const APPEND_STEP = 28;
 
 const clonePoints = (points: Point[]) => points.map((point) => ({ ...point }));
 
+const toPoint = (value: unknown, fallback: Point): Point => {
+  if (
+    typeof value === "object" &&
+    value !== null &&
+    "x" in value &&
+    "y" in value &&
+    typeof (value as { x: unknown }).x === "number" &&
+    typeof (value as { y: unknown }).y === "number"
+  ) {
+    return {
+      x: (value as { x: number }).x,
+      y: (value as { y: number }).y,
+    };
+  }
+  return fallback;
+};
+
 const createSpriteId = () => `sprite-${Math.random().toString(36).slice(2, 10)}`;
 
 export const createDefaultSprite = (id = createSpriteId()): Sprite => ({
@@ -119,7 +136,7 @@ export const getSpriteRenderablePoints = (sprite: Sprite): Point[] => {
         if (offsetDistance === 0 || arr.length <= 1) return { x: point.x, y: point.y };
         const t = index / (arr.length - 1);
         const projected = q.offset(t, offsetDistance);
-        return { x: projected.x, y: projected.y };
+        return toPoint(projected, point);
       });
     }
     if (mode === "cubic" && points.length >= 4) {
@@ -128,7 +145,7 @@ export const getSpriteRenderablePoints = (sprite: Sprite): Point[] => {
         if (offsetDistance === 0 || arr.length <= 1) return { x: point.x, y: point.y };
         const t = index / (arr.length - 1);
         const projected = c.offset(t, offsetDistance);
-        return { x: projected.x, y: projected.y };
+        return toPoint(projected, point);
       });
     }
   } catch {
@@ -200,10 +217,31 @@ export const updateBezierNodeLocal = (
       if (sprite.id !== spriteId) return sprite;
       const handleIndex = getBezierNodeIndex(sprite, role);
       if (handleIndex == null) return sprite;
+
+      const nextPoints = [...sprite.points];
+      const previousPoint = nextPoints[handleIndex];
       const constrainedPoint = applyPointConstraints(sprite, handleIndex, localPoint);
-      const points = sprite.points.map((point, index) =>
-        index === handleIndex ? constrainedPoint : point,
-      );
+      nextPoints[handleIndex] = constrainedPoint;
+
+      if (role === "p0" || role === "p1") {
+        const pairedControlRole: BezierNodeRole = role === "p0" ? "c0" : "c1";
+        const pairedControlIndex = getBezierNodeIndex(sprite, pairedControlRole);
+
+        if (pairedControlIndex != null) {
+          const delta = {
+            x: constrainedPoint.x - previousPoint.x,
+            y: constrainedPoint.y - previousPoint.y,
+          };
+
+          const pairedControlPoint = nextPoints[pairedControlIndex];
+          nextPoints[pairedControlIndex] = {
+            x: pairedControlPoint.x + delta.x,
+            y: pairedControlPoint.y + delta.y,
+          };
+        }
+      }
+
+      const points = nextPoints;
       return normalizeSprite({ ...sprite, points });
     }),
   };
