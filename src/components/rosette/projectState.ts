@@ -12,7 +12,7 @@ import { resetSliceState } from "./domains/sprite";
 import { RosetteProjectState } from "./types";
 
 export const createDefaultProjectState = (): RosetteProjectState => ({
-  editorLevel: "shape",
+  editorLevel: "sprite",
   order: DEFAULT_ORDER,
   lineThickness: DEFAULT_LINE_THICKNESS,
   baseOrientationDeg: BASE_ORIENTATION_DEG,

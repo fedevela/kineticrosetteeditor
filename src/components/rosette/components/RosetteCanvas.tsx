@@ -3,9 +3,16 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Container, Graphics } from "pixi.js";
 import { clampScale, screenToWorld, zoomToPoint } from "../mathViewport";
 import { flattenPoints, rotatePoint } from "../math";
-import { Point, Size, TessellationMechanism, Viewport } from "../types";
+import { BezierNodeRole, Point, Size, TessellationMechanism, Viewport } from "../types";
 import { useEditorActions, useEditorState } from "../state/editorStore";
 import { useDerivedGeometry } from "../hooks/useDerivedGeometry";
+import {
+  applySpriteTransform,
+  getActiveSprite,
+  getAvailableBezierNodeRoles,
+  getBezierNodePoint,
+  getSpriteRenderablePoints,
+} from "../domains/sprite";
 
 extend({ Container, Graphics });
 
@@ -39,6 +46,11 @@ type RosetteCanvasProps = {
   size: Size;
 };
 
+type ActiveDrag = {
+  spriteId: string;
+  role: BezierNodeRole;
+};
+
 export function RosetteCanvas({ size }: RosetteCanvasProps) {
   const state = useEditorState();
   const actions = useEditorActions();
@@ -54,6 +66,7 @@ export function RosetteCanvas({ size }: RosetteCanvasProps) {
   const { order, lineThickness, editorLevel, sliceState } = state;
   const sprites = sliceState.sprites;
   const activeSpriteId = sliceState.activeSpriteId;
+  const activeSprite = useMemo(() => getActiveSprite(sliceState), [sliceState]);
 
   const [viewport, setViewport] = useState<Viewport>({
     scale: 1,
@@ -62,18 +75,20 @@ export function RosetteCanvas({ size }: RosetteCanvasProps) {
   const [isSpaceDown, setIsSpaceDown] = useState(false);
   const [isPanning, setIsPanning] = useState(false);
   const [isEditingHandle, setIsEditingHandle] = useState(false);
+  const canvasHostRef = useRef<HTMLDivElement | null>(null);
   const panStartRef = useRef<{ pointer: Point; offset: Point } | null>(null);
-  const handleDragRef = useRef<number | null>(null);
+  const activeDragRef = useRef<ActiveDrag | null>(null);
 
-  const isShapeLevel = editorLevel === "shape";
+  const isSpriteLevel = editorLevel === "sprite";
+  const isSliceLevel = editorLevel === "slice";
   const isRosetteLevel = editorLevel === "rosette";
   const isTilingLevel = editorLevel === "tiling";
-  const isPanReady = isSpaceDown && !isEditingHandle;
+  const isPanReady = !isEditingHandle;
 
   const guideStroke = isRosetteLevel ? HEX.cyan : isTilingLevel ? HEX.violet : HEX.slate;
-  const guideOpacity = isRosetteLevel ? 0.7 : isShapeLevel ? 0.3 : 0.22;
+  const guideOpacity = isRosetteLevel ? 0.7 : isSpriteLevel || isSliceLevel ? 0.3 : 0.22;
   const motifStroke = isTilingLevel ? HEX.motifViolet : HEX.motifCyan;
-  const motifOpacity = isRosetteLevel ? 0.78 : isShapeLevel ? 0.28 : 0.42;
+  const motifOpacity = isRosetteLevel ? 0.78 : isSpriteLevel || isSliceLevel ? 0.28 : 0.42;
   const poseById = useMemo(
     () => new Map(tessellationMechanism.poses.map((pose) => [pose.id, pose])),
     [tessellationMechanism.poses],
@@ -120,8 +135,8 @@ export function RosetteCanvas({ size }: RosetteCanvasProps) {
     return "crosshair";
   }, [isEditingHandle, isPanning, isPanReady]);
 
-  const beginPan = (pointer: Point) => {
-    if (!isPanReady) return;
+  const beginPan = (pointer: Point, canPan: boolean) => {
+    if (!isPanReady || !canPan) return;
     panStartRef.current = {
       pointer,
       offset: viewport.offset,
@@ -148,11 +163,43 @@ export function RosetteCanvas({ size }: RosetteCanvasProps) {
   };
 
   const endHandleDrag = (shouldSnapshot = true) => {
-    if (handleDragRef.current == null) return;
-    handleDragRef.current = null;
+    if (activeDragRef.current == null) return;
+    activeDragRef.current = null;
     setIsEditingHandle(false);
     if (shouldSnapshot) actions.snapshot();
   };
+
+  const activeBezierNodes = useMemo(() => {
+    if (!activeSprite) return [] as { role: BezierNodeRole; point: Point; isAnchor: boolean }[];
+
+    return getAvailableBezierNodeRoles(activeSprite)
+      .map((role) => {
+        const localPoint = getBezierNodePoint(activeSprite, role);
+        if (!localPoint) return null;
+        const transformed = applySpriteTransform([localPoint], activeSprite)[0];
+        const oriented = rotatePoint(transformed, baseRotation);
+        return {
+          role,
+          isAnchor: role === "p0" || role === "p1",
+          point: {
+            x: center.x + oriented.x,
+            y: center.y + oriented.y,
+          },
+        };
+      })
+      .filter((node): node is { role: BezierNodeRole; point: Point; isAnchor: boolean } => node != null);
+  }, [activeSprite, baseRotation, center]);
+
+  const tangentSegments = useMemo(() => {
+    const byRole = new Map(activeBezierNodes.map((node) => [node.role, node.point]));
+    const segments: Point[][] = [];
+    if (byRole.has("p0") && byRole.has("c0")) segments.push([byRole.get("p0")!, byRole.get("c0")!]);
+    if (byRole.has("p1") && byRole.has("c1")) segments.push([byRole.get("p1")!, byRole.get("c1")!]);
+    if (byRole.has("p1") && byRole.has("c0") && !byRole.has("c1")) {
+      segments.push([byRole.get("p1")!, byRole.get("c0")!]);
+    }
+    return segments;
+  }, [activeBezierNodes]);
 
   const poseCenter = (pose: TessellationMechanism["poses"][number]) => {
     const glideX = Math.cos(pose.foldedAxis + Math.PI / 2) * pose.glideOffset;
@@ -168,9 +215,42 @@ export function RosetteCanvas({ size }: RosetteCanvasProps) {
 
   return (
     <div
+      ref={canvasHostRef}
       style={{ cursor: canvasCursor, width: size.width, height: size.height }}
+      onPointerDown={(event) => {
+        const isMiddleButton = event.button === 1;
+        if (!isSpaceDown && !isMiddleButton) return;
+        beginPan({ x: event.clientX, y: event.clientY }, true);
+      }}
+      onPointerMove={(event) => {
+        if (activeDragRef.current != null) {
+          const bounds = canvasHostRef.current?.getBoundingClientRect();
+          if (!bounds) return;
+          const pointer = {
+            x: event.clientX - bounds.left,
+            y: event.clientY - bounds.top,
+          };
+          const worldPoint = screenToWorld(pointer, viewport);
+          actions.updateSpriteBezierNode(
+            activeDragRef.current.spriteId,
+            activeDragRef.current.role,
+            worldPoint,
+            center,
+            baseRotation,
+          );
+          return;
+        }
+        continuePan({ x: event.clientX, y: event.clientY });
+      }}
+      onPointerUp={() => {
+        endHandleDrag(true);
+        endPan();
+      }}
+      onPointerLeave={() => {
+        endHandleDrag(true);
+        endPan();
+      }}
       onWheel={(event) => {
-        event.preventDefault();
         const bounds = event.currentTarget.getBoundingClientRect();
         const pointer = {
           x: event.clientX - bounds.left,
@@ -184,7 +264,7 @@ export function RosetteCanvas({ size }: RosetteCanvasProps) {
       <Application
         width={size.width}
         height={size.height}
-        preference="canvas"
+        preference="webgl"
         antialias
         resolution={window.devicePixelRatio || 1}
         autoDensity
@@ -192,39 +272,11 @@ export function RosetteCanvas({ size }: RosetteCanvasProps) {
       >
         <pixiContainer
           eventMode="static"
-          onPointerDown={(event) => {
-            const pointer = { x: event.global.x, y: event.global.y };
-            beginPan(pointer);
-          }}
-          onPointerMove={(event) => {
-            const pointer = { x: event.global.x, y: event.global.y };
-
-            if (handleDragRef.current != null) {
-              setIsEditingHandle(true);
-              const worldPoint = screenToWorld(pointer, viewport);
-              actions.updateSpriteHandle(handleDragRef.current, worldPoint, center, baseRotation);
-              return;
-            }
-
-            continuePan(pointer);
-          }}
           onPointerUp={() => {
-            if (handleDragRef.current != null) {
-              endHandleDrag(true);
-              return;
-            }
-
-            endPan();
+            endHandleDrag(true);
           }}
           onPointerUpOutside={() => {
             endHandleDrag(true);
-            endPan();
-          }}
-          onPointerLeave={() => {
-            // Fast drags can leave the interaction area before pointerup,
-            // which can leave handle drag state "stuck".
-            endHandleDrag(true);
-            endPan();
           }}
         >
           <pixiContainer
@@ -356,11 +408,12 @@ export function RosetteCanvas({ size }: RosetteCanvasProps) {
             scale={{ x: viewport.scale, y: viewport.scale }}
             eventMode="passive"
           >
-          {isShapeLevel &&
+          {(isSpriteLevel || isSliceLevel) &&
             sprites.map((sprite) => {
-              if (sprite.points.length <= 1) return null;
+              const spriteCurve = applySpriteTransform(getSpriteRenderablePoints(sprite), sprite);
+              if (spriteCurve.length <= 1) return null;
               const color = sprite.id === activeSpriteId ? HEX.amber : HEX.gray;
-              const oriented = sprite.points.map((point) => {
+              const oriented = spriteCurve.map((point) => {
                 const orientedPoint = rotatePoint(point, baseRotation);
                 return { x: center.x + orientedPoint.x, y: center.y + orientedPoint.y };
               });
@@ -387,9 +440,10 @@ export function RosetteCanvas({ size }: RosetteCanvasProps) {
                       join: "round",
                     });
                   }}
-                  onPointerTap={(event) => {
+                  onPointerTap={(event: any) => {
                     event.stopPropagation();
                     actions.setActiveSprite(sprite.id);
+                    if (!event.nativeEvent.altKey) return;
                     const pointer = { x: event.global.x, y: event.global.y };
                     const worldPoint = screenToWorld(pointer, viewport);
                     actions.insertHandleOnSegment(sprite.id, worldPoint, center, baseRotation);
@@ -399,25 +453,41 @@ export function RosetteCanvas({ size }: RosetteCanvasProps) {
             })}
 
           {activeSpriteCurve.length > 1 &&
-            isShapeLevel &&
-            activeSpriteCurve.map((handle, handleIndex) => (
+            isSpriteLevel &&
+            tangentSegments.map((segment, segmentIndex) => (
               <pixiGraphics
-                key={`base-handle-${handleIndex}`}
+                key={`bezier-tangent-${segmentIndex}`}
+                eventMode="none"
+                draw={(graphics) => {
+                  graphics
+                    .clear()
+                    .moveTo(segment[0].x, segment[0].y)
+                    .lineTo(segment[1].x, segment[1].y)
+                    .stroke({ width: 1.2, color: HEX.violet, alpha: 0.45 });
+                }}
+              />
+            ))}
+
+          {activeSpriteCurve.length > 1 &&
+            isSpriteLevel &&
+            activeBezierNodes.map((node) => (
+              <pixiGraphics
+                key={`base-handle-${node.role}`}
                 eventMode="static"
                 cursor="move"
                 draw={(graphics) => {
                   graphics
                     .clear()
-                    .circle(handle.x, handle.y, 6)
-                    .fill({ color: HEX.amber })
+                    .circle(node.point.x, node.point.y, node.isAnchor ? 6 : 4.5)
+                    .fill({ color: node.isAnchor ? HEX.amber : HEX.cyan })
                     .stroke({ width: 1.5, color: HEX.handleStroke });
                 }}
-                onPointerDown={(event) => {
+                onPointerDown={(event: any) => {
                   event.stopPropagation();
-                  handleDragRef.current = handleIndex;
+                  activeDragRef.current = { spriteId: activeSpriteId, role: node.role };
                   setIsEditingHandle(true);
                 }}
-                onPointerUp={(event) => {
+                onPointerUp={(event: any) => {
                   event.stopPropagation();
                   endHandleDrag(true);
                 }}

@@ -15,13 +15,16 @@ import {
   setActiveSprite,
   setSpriteAxisConstraintMode,
   setSpriteEnabled,
-  updateHandleLocal,
+  updateSpriteBezierContext,
+  updateSpriteTransform,
+  updateBezierNodeLocal,
 } from "../domains/sprite";
 import { rotatePoint } from "../math";
 import { createDefaultProjectState } from "../projectState";
 import { invariant } from "../invariant";
 import {
   EditorLevel,
+  BezierNodeRole,
   Point,
   RosetteProjectState,
   TessellationBranchOrder,
@@ -44,7 +47,7 @@ const createInitialHistoryState = (): HistoryState => ({
 const STORAGE_KEY = "rosette-project-state";
 const isHydratingRef = { current: false };
 
-const isTransientAction = (action: EditorAction) => action.type === "UPDATE_SPRITE_HANDLE";
+const isTransientAction = (action: EditorAction) => action.type === "UPDATE_SPRITE_BEZIER_NODE";
 
 const clearPersistedEditorState = () => {
   try {
@@ -86,7 +89,7 @@ const createDebouncedStorage = (storage: StateStorage, debounceMs = 250): StateS
     getItem: (name) => {
       try {
         const raw = storage.getItem(name);
-        if (raw == null) return null;
+        if (raw == null || typeof raw !== "string") return null;
 
         // Validate payload before Zustand attempts to parse it.
         // If malformed/corrupt, drop it and continue with defaults.
@@ -163,9 +166,12 @@ type EditorAction =
   | { type: "REMOVE_SPRITE"; spriteId: string }
   | { type: "ADD_HANDLE" }
   | { type: "REMOVE_HANDLE" }
+  | { type: "UPDATE_SPRITE_TRANSFORM"; spriteId: string; patch: { x?: number; y?: number; rotationDeg?: number; scale?: number } }
+  | { type: "UPDATE_SPRITE_BEZIER"; spriteId: string; patch: { mode?: "quadratic" | "cubic"; t?: number; lutSteps?: number; offset?: number; scale?: number } }
   | {
-      type: "UPDATE_SPRITE_HANDLE";
-      handleIndex: number;
+      type: "UPDATE_SPRITE_BEZIER_NODE";
+      spriteId: string;
+      role: BezierNodeRole;
       globalPoint: Point;
       center: Point;
       baseRotation: number;
@@ -289,7 +295,7 @@ const useEditorStore = create<EditorStore>()(
             case "ADD_HANDLE":
               applyCommittedUpdate((current) => {
                 const activeSprite = getActiveSprite(current.sliceState);
-                if (current.editorLevel !== "shape" || !activeSprite) return current;
+                if (current.editorLevel !== "sprite" || !activeSprite) return current;
                 return {
                   ...current,
                   sliceState: addPoint(current.sliceState, activeSprite.id, { type: "append" }),
@@ -299,23 +305,34 @@ const useEditorStore = create<EditorStore>()(
             case "REMOVE_HANDLE":
               applyCommittedUpdate((current) => {
                 const activeSprite = getActiveSprite(current.sliceState);
-                if (current.editorLevel !== "shape" || !activeSprite) return current;
+                if (current.editorLevel !== "sprite" || !activeSprite) return current;
                 return {
                   ...current,
                   sliceState: removePoint(current.sliceState, activeSprite.id, "last"),
                 };
               });
               break;
-            case "UPDATE_SPRITE_HANDLE":
+            case "UPDATE_SPRITE_TRANSFORM":
+              applyCommittedUpdate((current) => ({
+                ...current,
+                sliceState: updateSpriteTransform(current.sliceState, action.spriteId, action.patch),
+              }));
+              break;
+            case "UPDATE_SPRITE_BEZIER":
+              applyCommittedUpdate((current) => ({
+                ...current,
+                sliceState: updateSpriteBezierContext(current.sliceState, action.spriteId, action.patch),
+              }));
+              break;
+            case "UPDATE_SPRITE_BEZIER_NODE":
               applyTransientUpdate((current) => {
-                const activeSprite = getActiveSprite(current.sliceState);
-                if (current.editorLevel !== "shape" || !activeSprite) return current;
+                if (current.editorLevel !== "sprite") return current;
                 return {
                   ...current,
-                  sliceState: updateHandleLocal(
+                  sliceState: updateBezierNodeLocal(
                     current.sliceState,
-                    activeSprite.id,
-                    action.handleIndex,
+                    action.spriteId,
+                    action.role,
                     action.globalPoint,
                     action.center,
                     action.baseRotation,
@@ -325,7 +342,7 @@ const useEditorStore = create<EditorStore>()(
               break;
             case "INSERT_HANDLE_ON_SEGMENT":
               applyCommittedUpdate((current) => {
-                if (current.editorLevel !== "shape") return current;
+                if (current.editorLevel !== "sprite") return current;
                 const centeredPoint = {
                   x: action.point.x - action.center.x,
                   y: action.point.y - action.center.y,
@@ -452,12 +469,33 @@ export const useEditorActions = () => {
         dispatchAction({ type: "SET_SPRITE_ENABLED", spriteId, enabled }),
       setSpriteAxisConstraint: (spriteId: string, enabled: boolean) =>
         dispatchAction({ type: "SET_SPRITE_AXIS_CONSTRAINT", spriteId, enabled }),
+      updateSpriteTransform: (
+        spriteId: string,
+        patch: { x?: number; y?: number; rotationDeg?: number; scale?: number },
+      ) => dispatchAction({ type: "UPDATE_SPRITE_TRANSFORM", spriteId, patch }),
+      updateSpriteBezier: (
+        spriteId: string,
+        patch: { mode?: "quadratic" | "cubic"; t?: number; lutSteps?: number; offset?: number; scale?: number },
+      ) => dispatchAction({ type: "UPDATE_SPRITE_BEZIER", spriteId, patch }),
       addSprite: () => dispatchAction({ type: "ADD_SPRITE" }),
       removeSprite: (spriteId: string) => dispatchAction({ type: "REMOVE_SPRITE", spriteId }),
       addHandle: () => dispatchAction({ type: "ADD_HANDLE" }),
       removeHandle: () => dispatchAction({ type: "REMOVE_HANDLE" }),
-      updateSpriteHandle: (handleIndex: number, globalPoint: Point, center: Point, baseRotation: number) =>
-        dispatchAction({ type: "UPDATE_SPRITE_HANDLE", handleIndex, globalPoint, center, baseRotation }),
+      updateSpriteBezierNode: (
+        spriteId: string,
+        role: BezierNodeRole,
+        globalPoint: Point,
+        center: Point,
+        baseRotation: number,
+      ) =>
+        dispatchAction({
+          type: "UPDATE_SPRITE_BEZIER_NODE",
+          spriteId,
+          role,
+          globalPoint,
+          center,
+          baseRotation,
+        }),
       insertHandleOnSegment: (spriteId: string, point: Point, center: Point, baseRotation: number) =>
         dispatchAction({ type: "INSERT_HANDLE_ON_SEGMENT", spriteId, point, center, baseRotation }),
     }),

@@ -1,4 +1,3 @@
-import { getSpriteAxisConstraintMode } from "../../domains/sprite";
 import { SliceState } from "../../types";
 
 type ShapeControlsProps = {
@@ -6,7 +5,6 @@ type ShapeControlsProps = {
   activeSpritePointsLength: number;
   setActiveSprite: (spriteId: string) => void;
   setSpriteEnabled: (spriteId: string, enabled: boolean) => void;
-  setSpriteAxisConstraint: (spriteId: string, enabled: boolean) => void;
   addSprite: () => void;
   removeSprite: (spriteId: string) => void;
   addHandle: () => void;
@@ -18,7 +16,6 @@ export function ShapeControls({
   activeSpritePointsLength,
   setActiveSprite,
   setSpriteEnabled,
-  setSpriteAxisConstraint,
   addSprite,
   removeSprite,
   addHandle,
@@ -33,21 +30,11 @@ export function ShapeControls({
       <div className="kr-glass-inset sprite-list">
         {sliceState.sprites.map((sprite, index) => {
           const isActive = sprite.id === sliceState.activeSpriteId;
-          const hasAxisConstraint = getSpriteAxisConstraintMode(sprite) === "endpoints-on-axis";
           return (
             <div key={sprite.id} className={`sprite-item ${isActive ? "sprite-item-active" : ""}`}>
               <button type="button" onClick={() => setActiveSprite(sprite.id)} className="sprite-name">
                 Sprite {index + 1}
               </button>
-              <label className="row small-text text-zinc-soft" title="Endpoints on symmetry axis">
-                axis
-                <input
-                  type="checkbox"
-                  checked={hasAxisConstraint}
-                  onChange={(event) => setSpriteAxisConstraint(sprite.id, event.target.checked)}
-                  className="checkbox-sm checkbox-amber"
-                />
-              </label>
               <label className="row small-text text-zinc-soft">
                 on
                 <input
@@ -70,8 +57,8 @@ export function ShapeControls({
         })}
       </div>
       <div className="row-between">
-        <button type="button" onClick={addHandle} className="btn btn-sm kr-control">Add handle</button>
-        <button type="button" onClick={removeHandle} disabled={activeSpritePointsLength <= 2} className="btn btn-sm kr-control is-disabled-when-needed">Remove handle</button>
+        <button type="button" onClick={addHandle} className="btn btn-sm kr-control">Add control point</button>
+        <button type="button" onClick={removeHandle} disabled={activeSpritePointsLength <= 2} className="btn btn-sm kr-control is-disabled-when-needed">Remove control point</button>
         <span className="small-text">handles: {activeSpritePointsLength}</span>
       </div>
     </>

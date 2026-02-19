@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { buildRosetteCurvesFromSlice, transformCurvesToCenter } from "../domains/rosette";
-import { getActiveSprite } from "../domains/sprite";
+import { applySpriteTransform, getActiveSprite, getSpriteRenderablePoints } from "../domains/sprite";
 import { buildTessellationMechanism, buildTilingCells } from "../domains/tessellation";
 import { rotatePoint, toRad } from "../math";
 import { RosetteProjectState, Size } from "../types";
@@ -20,7 +20,7 @@ export const useDerivedGeometry = (projectState: RosetteProjectState, size: Size
     () =>
       projectState.sliceState.sprites
         .filter((sprite) => sprite.enabled !== false)
-        .map((sprite) => sprite.points),
+        .map((sprite) => applySpriteTransform(getSpriteRenderablePoints(sprite), sprite)),
     [projectState.sliceState.sprites],
   );
 
@@ -42,7 +42,8 @@ export const useDerivedGeometry = (projectState: RosetteProjectState, size: Size
 
   const activeSpriteCurve = useMemo(() => {
     if (!activeSprite) return [];
-    return activeSprite.points.map((point) => {
+    const spritePoints = applySpriteTransform(getSpriteRenderablePoints(activeSprite), activeSprite);
+    return spritePoints.map((point) => {
       const oriented = rotatePoint(point, baseRotation);
       return { x: center.x + oriented.x, y: center.y + oriented.y };
     });

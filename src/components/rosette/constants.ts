@@ -37,18 +37,26 @@ export const MAX_FOLD_PROGRESS = 1;
 export const DEFAULT_FOLD_PROGRESS = 0;
 
 export const DEFAULT_BASE_LINE: Point[] = [
-  { x: 0, y: 0 },
-  { x: 34, y: -18 },
-  { x: 58, y: -52 },
-  { x: 36, y: -92 },
-  { x: 0, y: -130 },
+  { x: -10, y: 12 },
+  { x: 42, y: -10 },
+  { x: 58, y: -64 },
+  { x: -6, y: -112 },
 ];
 
 export const LEVEL_META: Record<EditorLevel, LevelMeta> = {
-  shape: {
-    title: "Sprite + Slice Domain",
+  sprite: {
+    title: "Sprite Domain",
     shortTitle: "Sprite",
-    description: "Edit sprites that compose the slice motif (handles, enable, axis constraints).",
+    description: "Edit active sprite geometry and Bezier context.",
+    buttonClass: "level-shape-active",
+    badgeClass: "level-shape-active",
+    accentTextClass: "accent-shape-text",
+    neonClass: "kr-neon-amber",
+  },
+  slice: {
+    title: "Slice Domain",
+    shortTitle: "Slice",
+    description: "Compose the slice with n sprites and per-sprite transforms.",
     buttonClass: "level-shape-active",
     badgeClass: "level-shape-active",
     accentTextClass: "accent-shape-text",

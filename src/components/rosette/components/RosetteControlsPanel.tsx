@@ -4,6 +4,7 @@ import {
 import { useEditorActions, useEditorHistory, useEditorState } from "../state/editorStore";
 import { getActiveSprite } from "../domains/sprite";
 import { EditorLevelTabs } from "./controls/EditorLevelTabs";
+import { SpriteControls } from "./controls/SpriteControls";
 import { ShapeControls } from "./controls/ShapeControls";
 import { RosetteControls } from "./controls/RosetteControls";
 import { TilingControls } from "./controls/TilingControls";
@@ -29,9 +30,11 @@ export function RosetteControlsPanel() {
     foldProgress,
     fixedCellId,
   } = state;
-  const activeSpritePointsLength = getActiveSprite(sliceState)?.points.length ?? 0;
+  const activeSprite = getActiveSprite(sliceState);
+  const activeSpritePointsLength = activeSprite?.points.length ?? 0;
 
-  const isShapeLevel = editorLevel === "shape";
+  const isSpriteLevel = editorLevel === "sprite";
+  const isSliceLevel = editorLevel === "slice";
   const isRosetteLevel = editorLevel === "rosette";
   const isTilingLevel = editorLevel === "tiling";
   const activeMeta = LEVEL_META[editorLevel];
@@ -52,13 +55,23 @@ export function RosetteControlsPanel() {
           <p className="small-text">{activeMeta.description}</p>
         </div>
 
-        {isShapeLevel && (
+        {isSpriteLevel && (
+          <SpriteControls
+            sprite={activeSprite}
+            activeSpritePointsLength={activeSpritePointsLength}
+            updateSpriteTransform={actions.updateSpriteTransform}
+            updateSpriteBezier={actions.updateSpriteBezier}
+            addHandle={actions.addHandle}
+            removeHandle={actions.removeHandle}
+          />
+        )}
+
+        {isSliceLevel && (
           <ShapeControls
             sliceState={sliceState}
             activeSpritePointsLength={activeSpritePointsLength}
             setActiveSprite={actions.setActiveSprite}
             setSpriteEnabled={actions.setSpriteEnabled}
-            setSpriteAxisConstraint={actions.setSpriteAxisConstraint}
             addSprite={actions.addSprite}
             removeSprite={actions.removeSprite}
             addHandle={actions.addHandle}
@@ -102,7 +115,8 @@ export function RosetteControlsPanel() {
 
         <div className="row-between section-divider">
           <p className="small-text">
-            {isShapeLevel && "Drag amber handles to author the active sprite in the slice."}
+            {isSpriteLevel && "Edit active sprite handles and Bezier context."}
+            {isSliceLevel && "Manage sprites in the slice and choose which sprite is active."}
             {isRosetteLevel &&
               (mirrorAdjacency
                 ? "Mirrored neighbors ON: odd sectors are reflected."

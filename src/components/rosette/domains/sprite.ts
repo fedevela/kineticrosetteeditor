@@ -1,6 +1,7 @@
 import { DEFAULT_BASE_LINE } from "../constants";
 import { rotatePoint } from "../math";
-import { Point, SliceState, Sprite } from "../types";
+import { BezierNodeRole, Point, SliceState, Sprite } from "../types";
+import { Bezier } from "bezier-js";
 
 const DEFAULT_AXIS_SNAP_THRESHOLD = 10;
 const APPEND_STEP = 28;
@@ -13,6 +14,19 @@ export const createDefaultSprite = (id = createSpriteId()): Sprite => ({
   id,
   type: "polyline",
   points: clonePoints(DEFAULT_BASE_LINE),
+  transform: {
+    x: 0,
+    y: 0,
+    rotationDeg: 0,
+    scale: 1,
+  },
+  bezierContext: {
+    mode: "cubic",
+    t: 0.5,
+    lutSteps: 48,
+    offset: 0,
+    scale: 1,
+  },
   enabled: true,
   constraints: {
     endpointOnSymmetryAxis: true,
@@ -33,20 +47,28 @@ export const getActiveSprite = (sliceState: SliceState) =>
   sliceState.sprites[0] ??
   null;
 
-const applyEndpointAxisConstraint = (sprite: Sprite, handleIndex: number, point: Point): Point => {
-  if (!sprite.constraints?.endpointOnSymmetryAxis) return point;
-  if (sprite.points.length === 0) return point;
-  if (handleIndex === 0 || handleIndex === sprite.points.length - 1) {
-    return { x: 0, y: point.y };
+const getBezierNodeIndex = (sprite: Sprite, role: BezierNodeRole): number | null => {
+  const pointsLength = sprite.points.length;
+  if (pointsLength <= 0) return null;
+
+  switch (role) {
+    case "p0":
+      return 0;
+    case "p1":
+      return pointsLength - 1;
+    case "c0":
+      return pointsLength >= 3 ? 1 : null;
+    case "c1":
+      return pointsLength >= 4 ? pointsLength - 2 : null;
   }
+};
+
+const applyEndpointAxisConstraint = (sprite: Sprite, handleIndex: number, point: Point): Point => {
   return point;
 };
 
 const applySnapToAxisConstraint = (sprite: Sprite, point: Point): Point => {
-  if (!sprite.constraints?.endpointOnSymmetryAxis) return point;
-  const threshold = sprite.constraints?.snapToAxisThresholdPx;
-  if (threshold == null) return point;
-  return Math.abs(point.x) <= threshold ? { x: 0, y: point.y } : point;
+  return point;
 };
 
 export const applyPointConstraints = (
@@ -59,14 +81,74 @@ export const applyPointConstraints = (
 };
 
 export const normalizeSprite = (sprite: Sprite): Sprite => {
-  if (!sprite.constraints?.endpointOnSymmetryAxis || sprite.points.length === 0) return sprite;
+  const withDefaults: Sprite = {
+    ...sprite,
+    transform: {
+      x: sprite.transform?.x ?? 0,
+      y: sprite.transform?.y ?? 0,
+      rotationDeg: sprite.transform?.rotationDeg ?? 0,
+      scale: sprite.transform?.scale ?? 1,
+    },
+    bezierContext: {
+      mode: sprite.bezierContext?.mode ?? "cubic",
+      t: sprite.bezierContext?.t ?? 0.5,
+      lutSteps: sprite.bezierContext?.lutSteps ?? 48,
+      offset: sprite.bezierContext?.offset ?? 0,
+      scale: sprite.bezierContext?.scale ?? 1,
+    },
+  };
 
-  const nextPoints = sprite.points.map((point, index) => {
-    if (index === 0 || index === sprite.points.length - 1) return { x: 0, y: point.y };
-    return point;
+  return withDefaults;
+};
+
+export const getSpriteRenderablePoints = (sprite: Sprite): Point[] => {
+  const normalized = normalizeSprite(sprite);
+  const points = normalized.points;
+  if (points.length <= 1) return points;
+
+  const mode = normalized.bezierContext?.mode ?? "cubic";
+  const lutSteps = Math.max(8, Math.floor(normalized.bezierContext?.lutSteps ?? 48));
+  const bezierScale = normalized.bezierContext?.scale ?? 1;
+  const offsetDistance = normalized.bezierContext?.offset ?? 0;
+
+  let sampled: Point[] = points;
+  try {
+    if (mode === "quadratic" && points.length >= 3) {
+      const q = new Bezier(points[0], points[1], points[2]);
+      sampled = q.getLUT(lutSteps).map((point: { x: number; y: number }, index: number, arr: unknown[]) => {
+        if (offsetDistance === 0 || arr.length <= 1) return { x: point.x, y: point.y };
+        const t = index / (arr.length - 1);
+        const projected = q.offset(t, offsetDistance);
+        return { x: projected.x, y: projected.y };
+      });
+    }
+    if (mode === "cubic" && points.length >= 4) {
+      const c = new Bezier(points[0], points[1], points[2], points[3]);
+      sampled = c.getLUT(lutSteps).map((point: { x: number; y: number }, index: number, arr: unknown[]) => {
+        if (offsetDistance === 0 || arr.length <= 1) return { x: point.x, y: point.y };
+        const t = index / (arr.length - 1);
+        const projected = c.offset(t, offsetDistance);
+        return { x: projected.x, y: projected.y };
+      });
+    }
+  } catch {
+    sampled = points;
+  }
+
+  return sampled.map((point) => ({
+    x: point.x * bezierScale,
+    y: point.y * bezierScale,
+  }));
+};
+
+export const applySpriteTransform = (points: Point[], sprite: Sprite): Point[] => {
+  const transform = sprite.transform ?? { x: 0, y: 0, rotationDeg: 0, scale: 1 };
+  const angle = (transform.rotationDeg * Math.PI) / 180;
+  return points.map((point) => {
+    const scaled = { x: point.x * transform.scale, y: point.y * transform.scale };
+    const rotated = rotatePoint(scaled, angle);
+    return { x: rotated.x + transform.x, y: rotated.y + transform.y };
   });
-
-  return { ...sprite, points: nextPoints };
 };
 
 export const updateHandleLocal = (
@@ -95,6 +177,49 @@ export const updateHandleLocal = (
       return normalizeSprite({ ...sprite, points });
     }),
   };
+};
+
+export const updateBezierNodeLocal = (
+  sliceState: SliceState,
+  spriteId: string,
+  role: BezierNodeRole,
+  globalPoint: Point,
+  center: Point,
+  baseRotation: number,
+): SliceState => {
+  const centeredPoint = {
+    x: globalPoint.x - center.x,
+    y: globalPoint.y - center.y,
+  };
+
+  const localPoint = rotatePoint(centeredPoint, -baseRotation);
+
+  return {
+    ...sliceState,
+    sprites: sliceState.sprites.map((sprite) => {
+      if (sprite.id !== spriteId) return sprite;
+      const handleIndex = getBezierNodeIndex(sprite, role);
+      if (handleIndex == null) return sprite;
+      const constrainedPoint = applyPointConstraints(sprite, handleIndex, localPoint);
+      const points = sprite.points.map((point, index) =>
+        index === handleIndex ? constrainedPoint : point,
+      );
+      return normalizeSprite({ ...sprite, points });
+    }),
+  };
+};
+
+export const getBezierNodePoint = (sprite: Sprite, role: BezierNodeRole): Point | null => {
+  const index = getBezierNodeIndex(sprite, role);
+  return index == null ? null : (sprite.points[index] ?? null);
+};
+
+export const getAvailableBezierNodeRoles = (sprite: Sprite): BezierNodeRole[] => {
+  const roles: BezierNodeRole[] = ["p0"];
+  if (sprite.points.length >= 3) roles.push("c0");
+  if (sprite.points.length >= 4) roles.push("c1");
+  roles.push("p1");
+  return roles;
 };
 
 const closestPointOnSegment = (point: Point, a: Point, b: Point): Point => {
@@ -234,33 +359,13 @@ export const setSpriteEnabled = (
 
 export type AxisConstraintMode = "none" | "endpoints-on-axis";
 
-export const getSpriteAxisConstraintMode = (sprite: Sprite): AxisConstraintMode =>
-  sprite.constraints?.endpointOnSymmetryAxis ? "endpoints-on-axis" : "none";
+export const getSpriteAxisConstraintMode = (_sprite: Sprite): AxisConstraintMode => "none";
 
 export const setSpriteAxisConstraintMode = (
   sliceState: SliceState,
-  spriteId: string,
-  mode: AxisConstraintMode,
-): SliceState => ({
-  ...sliceState,
-  sprites: sliceState.sprites.map((sprite) => {
-    if (sprite.id !== spriteId) return sprite;
-
-    const nextSprite: Sprite = {
-      ...sprite,
-      constraints: {
-        ...sprite.constraints,
-        endpointOnSymmetryAxis: mode === "endpoints-on-axis",
-        snapToAxisThresholdPx:
-          mode === "endpoints-on-axis"
-            ? (sprite.constraints?.snapToAxisThresholdPx ?? DEFAULT_AXIS_SNAP_THRESHOLD)
-            : undefined,
-      },
-    };
-
-    return normalizeSprite(nextSprite);
-  }),
-});
+  _spriteId: string,
+  _mode: AxisConstraintMode,
+): SliceState => sliceState;
 
 export const setActiveSprite = (sliceState: SliceState, spriteId: string): SliceState => {
   const exists = sliceState.sprites.some((sprite) => sprite.id === spriteId);
@@ -291,3 +396,44 @@ export const removeSprite = (sliceState: SliceState, spriteId: string): SliceSta
     sprites,
   };
 };
+
+export const updateSpriteTransform = (
+  sliceState: SliceState,
+  spriteId: string,
+  patch: Partial<NonNullable<Sprite["transform"]>>,
+): SliceState => ({
+  ...sliceState,
+  sprites: sliceState.sprites.map((sprite) => {
+    if (sprite.id !== spriteId) return sprite;
+    return normalizeSprite({
+      ...sprite,
+      transform: {
+        x: patch.x ?? sprite.transform?.x ?? 0,
+        y: patch.y ?? sprite.transform?.y ?? 0,
+        rotationDeg: patch.rotationDeg ?? sprite.transform?.rotationDeg ?? 0,
+        scale: patch.scale ?? sprite.transform?.scale ?? 1,
+      },
+    });
+  }),
+});
+
+export const updateSpriteBezierContext = (
+  sliceState: SliceState,
+  spriteId: string,
+  patch: Partial<NonNullable<Sprite["bezierContext"]>>,
+): SliceState => ({
+  ...sliceState,
+  sprites: sliceState.sprites.map((sprite) => {
+    if (sprite.id !== spriteId) return sprite;
+    return normalizeSprite({
+      ...sprite,
+      bezierContext: {
+        mode: patch.mode ?? sprite.bezierContext?.mode ?? "cubic",
+        t: patch.t ?? sprite.bezierContext?.t ?? 0.5,
+        lutSteps: patch.lutSteps ?? sprite.bezierContext?.lutSteps ?? 48,
+        offset: patch.offset ?? sprite.bezierContext?.offset ?? 0,
+        scale: patch.scale ?? sprite.bezierContext?.scale ?? 1,
+      },
+    });
+  }),
+});

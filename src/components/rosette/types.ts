@@ -8,6 +8,8 @@ export type Point = {
   y: number;
 };
 
+export type BezierNodeRole = "p0" | "c0" | "c1" | "p1";
+
 export type SpriteType = "polyline";
 
 export type SpriteConstraints = {
@@ -19,6 +21,19 @@ export type Sprite = {
   id: string;
   type: SpriteType;
   points: Point[];
+  transform?: {
+    x: number;
+    y: number;
+    rotationDeg: number;
+    scale: number;
+  };
+  bezierContext?: {
+    mode: "quadratic" | "cubic";
+    t: number;
+    lutSteps: number;
+    offset: number;
+    scale: number;
+  };
   isClosed?: boolean;
   enabled?: boolean;
   constraints?: SpriteConstraints;
@@ -51,7 +66,7 @@ export type Viewport = {
   offset: Point;
 };
 
-export type EditorLevel = "shape" | "rosette" | "tiling";
+export type EditorLevel = "sprite" | "slice" | "rosette" | "tiling";
 
 export type TilingLattice = "hex" | "square";
 
