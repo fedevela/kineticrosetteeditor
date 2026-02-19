@@ -46,6 +46,10 @@ export function RosetteCanvas({ size }: RosetteCanvasProps) {
   const guideOpacity = isRosetteLevel ? 0.7 : isShapeLevel ? 0.3 : 0.22;
   const motifStroke = isTilingLevel ? "#c084fc" : "#67e8f9";
   const motifOpacity = isRosetteLevel ? 0.78 : isShapeLevel ? 0.28 : 0.42;
+  const poseById = useMemo(
+    () => new Map(tessellationMechanism.poses.map((pose) => [pose.id, pose])),
+    [tessellationMechanism.poses],
+  );
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -249,8 +253,8 @@ export function RosetteCanvas({ size }: RosetteCanvasProps) {
 
           {isTilingLevel &&
             tessellationMechanism.edges.map((edge, edgeIndex) => {
-              const parent = tessellationMechanism.poses.find((pose) => pose.id === edge.parentId);
-              const child = tessellationMechanism.poses.find((pose) => pose.id === edge.childId);
+              const parent = poseById.get(edge.parentId);
+              const child = poseById.get(edge.childId);
               if (!parent || !child) return null;
               const parentCenter = poseCenter(parent);
               const childCenter = poseCenter(child);

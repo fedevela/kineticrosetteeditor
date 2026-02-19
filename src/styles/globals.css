@@ -114,11 +114,6 @@ body {
   box-shadow: 0 0 0 1px rgba(255, 207, 77, 0.2), 0 0 22px rgba(255, 207, 77, 0.14);
 }
 
-.app-root {
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
 .home-main {
   height: 100dvh;
   width: 100vw;

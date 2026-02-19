@@ -31,6 +31,33 @@ type TilingControlsProps = {
   setFixedCellId: (value: string) => void;
 };
 
+type OptionGroupProps<T extends string> = {
+  options: ReadonlyArray<readonly [T, string]>;
+  selected: T;
+  onSelect: (value: T) => void;
+  gridClassName: string;
+};
+
+function OptionGroup<T extends string>({ options, selected, onSelect, gridClassName }: OptionGroupProps<T>) {
+  return (
+    <div className={gridClassName}>
+      {options.map(([value, label]) => {
+        const active = selected === value;
+        return (
+          <button
+            key={value}
+            type="button"
+            onClick={() => onSelect(value)}
+            className={`btn btn-sm ${active ? "tiling-active" : "kr-control text-violet-soft"}`}
+          >
+            {label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 export function TilingControls({
   tilingLattice,
   setTilingLattice,
@@ -54,62 +81,40 @@ export function TilingControls({
   return (
     <div className="kr-glass-inset control-stack panel-card">
       <p className="small-text text-violet-soft">Tiling controls</p>
-      <div className="tiling-grid-2">
-        {([
+      <OptionGroup
+        options={[
           ["hex", "Hex lattice"],
           ["square", "Square grid"],
-        ] as const).map(([value, label]) => {
-          const active = tilingLattice === value;
-          return (
-            <button key={value} type="button" onClick={() => setTilingLattice(value)} className={`btn btn-sm ${active ? "tiling-active" : "kr-control text-violet-soft"}`}>
-              {label}
-            </button>
-          );
-        })}
-      </div>
+        ]}
+        selected={tilingLattice}
+        onSelect={setTilingLattice}
+        gridClassName="tiling-grid-2"
+      />
       <div>
         <p className="control-label control-label-row">Symmetry operation</p>
-        <div className="tiling-grid-3">
-          {([
+        <OptionGroup
+          options={[
             ["translation", "Translation"],
             ["reflection", "Reflection"],
             ["glide", "Glide"],
-          ] as const).map(([value, label]) => {
-            const active = tessellationSymmetry === value;
-            return (
-              <button
-                key={value}
-                type="button"
-                onClick={() => setTessellationSymmetry(value)}
-                className={`btn btn-sm ${active ? "tiling-active" : "kr-control text-violet-soft"}`}
-              >
-                {label}
-              </button>
-            );
-          })}
-        </div>
+          ]}
+          selected={tessellationSymmetry}
+          onSelect={setTessellationSymmetry}
+          gridClassName="tiling-grid-3"
+        />
       </div>
       <div>
         <p className="control-label control-label-row">Branch order</p>
-        <div className="tiling-grid-3">
-          {([
+        <OptionGroup
+          options={[
             ["ring", "Ring"],
             ["spiral", "Spiral"],
             ["axis-first", "Axis first"],
-          ] as const).map(([value, label]) => {
-            const active = tessellationBranchOrder === value;
-            return (
-              <button
-                key={value}
-                type="button"
-                onClick={() => setTessellationBranchOrder(value)}
-                className={`btn btn-sm ${active ? "tiling-active" : "kr-control text-violet-soft"}`}
-              >
-                {label}
-              </button>
-            );
-          })}
-        </div>
+          ]}
+          selected={tessellationBranchOrder}
+          onSelect={setTessellationBranchOrder}
+          gridClassName="tiling-grid-3"
+        />
       </div>
       <div>
         <div className="row-between control-label-row">

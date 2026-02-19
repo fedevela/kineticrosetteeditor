@@ -2,7 +2,6 @@ import { useMemo } from "react";
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
 import { createJSONStorage, persist, subscribeWithSelector, type StateStorage } from "zustand/middleware";
-import { useShallow } from "zustand/react/shallow";
 import {
   MAX_BASE_ORIENTATION_DEG,
   MIN_BASE_ORIENTATION_DEG,
@@ -154,7 +153,6 @@ type FieldPatch = Partial<
 
 type EditorAction =
   | { type: "PATCH_FIELDS"; patch: FieldPatch }
-  | { type: "SET_HISTORY"; history: HistoryState }
   | { type: "RESET" }
   | { type: "UNDO" }
   | { type: "REDO" }
@@ -177,7 +175,6 @@ type EditorAction =
 type EditorStore = HistoryState & {
   hasHydrated: boolean;
   dispatchAction: (action: EditorAction) => void;
-  setHistory: (history: HistoryState) => void;
   snapshot: () => void;
 };
 
@@ -187,12 +184,6 @@ const useEditorStore = create<EditorStore>()(
       immer((set) => ({
         ...createInitialHistoryState(),
         hasHydrated: false,
-        setHistory: (history) =>
-          set((state) => {
-            state.past = history.past;
-            state.present = history.present;
-            state.future = history.future;
-          }),
         snapshot: () =>
           set((state) => {
             state.past.push(state.present);
@@ -228,13 +219,6 @@ const useEditorStore = create<EditorStore>()(
           };
 
           switch (action.type) {
-            case "SET_HISTORY":
-              set((state) => {
-                state.past = action.history.past;
-                state.present = action.history.present;
-                state.future = action.history.future;
-              });
-              break;
             case "RESET":
               set(() => ({ ...createInitialHistoryState(), hasHydrated: true }));
               break;
@@ -439,11 +423,9 @@ export const useEditorHistory = () => {
 
 export const useEditorActions = () => {
   const dispatchAction = useEditorStore((state) => state.dispatchAction);
-  const setHistory = useEditorStore((state) => state.setHistory);
   const snapshot = useEditorStore((state) => state.snapshot);
   return useMemo(
     () => ({
-      setHistory,
       snapshot,
       reset: () => dispatchAction({ type: "RESET" }),
       undo: () => dispatchAction({ type: "UNDO" }),
@@ -479,17 +461,6 @@ export const useEditorActions = () => {
       insertHandleOnSegment: (spriteId: string, point: Point, center: Point, baseRotation: number) =>
         dispatchAction({ type: "INSERT_HANDLE_ON_SEGMENT", spriteId, point, center, baseRotation }),
     }),
-    [dispatchAction, setHistory, snapshot],
+    [dispatchAction, snapshot],
   );
 };
-
-export const useEditorStateSnapshot = () =>
-  useEditorStore(
-    useShallow((state) => ({
-      past: state.past,
-      present: state.present,
-      future: state.future,
-    })),
-  );
-
-export const useEditorCommit = () => useEditorStore((state) => state.setHistory);

@@ -14,11 +14,6 @@ export const screenToWorld = (screenPoint: Point, viewport: Viewport): Point => 
   y: (screenPoint.y - viewport.offset.y) / viewport.scale,
 });
 
-export const worldToScreen = (worldPoint: Point, viewport: Viewport): Point => ({
-  x: worldPoint.x * viewport.scale + viewport.offset.x,
-  y: worldPoint.y * viewport.scale + viewport.offset.y,
-});
-
 export const zoomToPoint = (viewport: Viewport, screenPoint: Point, nextScale: number): Viewport => {
   const safeScale = clampScale(nextScale);
   const worldPoint = screenToWorld(screenPoint, viewport);

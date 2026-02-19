@@ -97,7 +97,7 @@ export const updateHandleLocal = (
   };
 };
 
-export const closestPointOnSegment = (point: Point, a: Point, b: Point): Point => {
+const closestPointOnSegment = (point: Point, a: Point, b: Point): Point => {
   const ab = { x: b.x - a.x, y: b.y - a.y };
   const ap = { x: point.x - a.x, y: point.y - a.y };
   const denom = ab.x * ab.x + ab.y * ab.y;
@@ -110,7 +110,7 @@ export const closestPointOnSegment = (point: Point, a: Point, b: Point): Point =
   };
 };
 
-export const findClosestSegmentIndex = (
+const findClosestSegmentIndex = (
   points: Point[],
   point: Point,
   tolerance = Infinity,
@@ -147,7 +147,7 @@ const appendPoint = (sprite: Sprite) => {
   return [...sprite.points, nextPoint];
 };
 
-export type AddPointStrategy =
+type AddPointStrategy =
   | { type: "append" }
   | { type: "insert-on-segment"; point: Point; tolerance?: number }
   | { type: "midpoint"; index: number };
@@ -185,7 +185,10 @@ const addPointWithStrategy = (sprite: Sprite, strategy: AddPointStrategy): Point
 export const addPoint = (
   sliceState: SliceState,
   spriteId: string,
-  strategy: AddPointStrategy,
+  strategy:
+    | { type: "append" }
+    | { type: "insert-on-segment"; point: Point; tolerance?: number }
+    | { type: "midpoint"; index: number },
 ): SliceState => ({
   ...sliceState,
   sprites: sliceState.sprites.map((sprite) => {

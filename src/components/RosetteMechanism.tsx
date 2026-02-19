@@ -3,7 +3,7 @@ import { EditingBadge } from "./rosette/components/EditingBadge";
 import { RosetteCanvas } from "./rosette/components/RosetteCanvas";
 import { useContainerSize } from "./rosette/hooks/useContainerSize";
 
-function RosetteMechanismContent() {
+export function RosetteMechanism() {
   const { containerRef, size } = useContainerSize();
 
   return (
@@ -13,8 +13,4 @@ function RosetteMechanismContent() {
       <RosetteCanvas size={size} />
     </div>
   );
-}
-
-export function RosetteMechanism() {
-  return <RosetteMechanismContent />;
 }

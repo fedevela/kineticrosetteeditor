@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo } from "react";
-import { LEVEL_META } from "../constants";
 import { buildRosetteCurvesFromSlice, transformCurvesToCenter } from "../domains/rosette";
 import { getActiveSprite } from "../domains/sprite";
 import { buildTessellationMechanism, buildTilingCells } from "../domains/tessellation";
@@ -77,16 +76,12 @@ export const useDerivedGeometry = (projectState: RosetteProjectState, size: Size
     ],
   );
 
-  const activeMeta = LEVEL_META[projectState.editorLevel];
-
   return {
     center,
     baseRotation,
-    activeSprite,
     rosetteCurvesFromSlice,
     transformedCurves,
     activeSpriteCurve,
     tessellationMechanism,
-    activeMeta,
   };
 };

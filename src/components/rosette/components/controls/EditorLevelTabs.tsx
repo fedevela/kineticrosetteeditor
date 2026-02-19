@@ -13,8 +13,6 @@ export function EditorLevelTabs({ editorLevel, setEditorLevel }: EditorLevelTabs
         {(Object.keys(LEVEL_META) as EditorLevel[]).map((level) => {
           const levelMeta = LEVEL_META[level];
           const isActive = editorLevel === level;
-          const neonClass =
-            level === "shape" ? "kr-neon-amber" : level === "rosette" ? "kr-neon-cyan" : "kr-neon-lime";
 
           return (
             <button
@@ -23,7 +21,7 @@ export function EditorLevelTabs({ editorLevel, setEditorLevel }: EditorLevelTabs
               onClick={() => setEditorLevel(level)}
               className={`btn ${
                 isActive
-                  ? `${levelMeta.buttonClass} ${neonClass}`
+                  ? `${levelMeta.buttonClass} ${levelMeta.neonClass}`
                   : "kr-control"
               }`}
             >

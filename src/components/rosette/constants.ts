@@ -52,6 +52,7 @@ export const LEVEL_META: Record<EditorLevel, LevelMeta> = {
     buttonClass: "level-shape-active",
     badgeClass: "level-shape-active",
     accentTextClass: "accent-shape-text",
+    neonClass: "kr-neon-amber",
   },
   rosette: {
     title: "Rosette Domain",
@@ -60,6 +61,7 @@ export const LEVEL_META: Record<EditorLevel, LevelMeta> = {
     buttonClass: "level-rosette-active",
     badgeClass: "level-rosette-active",
     accentTextClass: "accent-rosette-text",
+    neonClass: "kr-neon-cyan",
   },
   tiling: {
     title: "Tiling Domain",
@@ -68,5 +70,6 @@ export const LEVEL_META: Record<EditorLevel, LevelMeta> = {
     buttonClass: "level-tiling-active",
     badgeClass: "level-tiling-active",
     accentTextClass: "accent-tiling-text",
+    neonClass: "kr-neon-lime",
   },
 };

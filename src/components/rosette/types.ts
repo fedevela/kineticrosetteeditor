@@ -10,15 +10,8 @@ export type Point = {
 
 export type SpriteType = "polyline";
 
-export type SpriteStyle = {
-  strokeWidth?: number;
-  dash?: number[];
-  opacity?: number;
-};
-
 export type SpriteConstraints = {
   endpointOnSymmetryAxis?: boolean;
-  mirrorPairs?: Array<[number, number]>;
   snapToAxisThresholdPx?: number;
 };
 
@@ -28,7 +21,6 @@ export type Sprite = {
   points: Point[];
   isClosed?: boolean;
   enabled?: boolean;
-  style?: SpriteStyle;
   constraints?: SpriteConstraints;
 };
 
@@ -74,6 +66,7 @@ export type LevelMeta = {
   buttonClass: string;
   badgeClass: string;
   accentTextClass: string;
+  neonClass: string;
 };
 
 export type TilingCell = {
