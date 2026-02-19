@@ -7,6 +7,7 @@ import {
   TilingCell,
   TilingLattice,
 } from "../types";
+import { invariant } from "../invariant";
 
 const angleBetween = (from: TilingCell, to: TilingCell) => Math.atan2(to.y - from.y, to.x - from.x);
 
@@ -176,6 +177,11 @@ export const buildTessellationMechanism = ({
     cells.find((cell) => cell.id === fixedCellId) ??
     cells.find((cell) => cell.id === "0,0") ??
     cells[0];
+
+  invariant(root != null, "Tessellation root cell could not be resolved", {
+    context: { fixedCellId, cellCount: cells.length },
+    recoverable: true,
+  });
 
   const sorted = sortCellsByBranchOrder(cells, branchOrder);
   const spacing = estimateSpacing(cells);

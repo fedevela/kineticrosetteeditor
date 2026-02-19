@@ -338,6 +338,7 @@ export function RosetteCanvas({ size }: RosetteCanvasProps) {
                 onDragEnd={(event) => {
                   event.cancelBubble = true;
                   setIsEditingHandle(false);
+                  actions.snapshot();
                 }}
               />
             ))}

@@ -12,7 +12,7 @@ Main architectural split:
 
 - **Application shell/routing**: `src/main.tsx`, `src/App.tsx`
 - **Orchestration layer**: `RosetteMechanism.tsx`
-- **State layer**: `rosette/state/editorStore.tsx`
+- **State layer**: `rosette/state/editorStore.tsx` (Zustand + Immer + persist)
 - **Domain logic (pure geometry functions)**: `src/components/rosette/domains/*`
 - **Presentation layer**:
   - Control surface: `RosetteControlsPanel.tsx`
@@ -22,7 +22,7 @@ Main architectural split:
 Core behavior is event-driven:
 
 1. user interaction (slider/toggle/drag)
-2. state update through `editorStore` actions/reducer
+2. state update through `editorStore` store actions
 3. memoized domain recomputation (`useMemo` + pure functions)
 4. declarative canvas redraw via React + Konva
 
@@ -127,7 +127,7 @@ The system operates on three compositional levels controlled by `editorLevel: "s
 
 - `src/main.tsx` bootstraps React with `BrowserRouter` and global styles.
 - `src/App.tsx` defines routes (`/` and fallback redirect) and mounts `RosetteMechanism`.
-- `RosetteMechanism` wraps the feature in `RosetteEditorProvider`, then composes controls, badge, and canvas.
+- `RosetteMechanism` composes controls, badge, and canvas directly (no provider wrapper required).
 
 ## Konva side (`RosetteCanvas.tsx`)
 
@@ -152,7 +152,7 @@ Why Konva here:
 ## 4) Data flow (end-to-end)
 
 1. **Input**: control panel interaction or handle drag.
-2. **State update**: actions from `editorStore` reducer (history-aware, undo/redo).
+2. **State update**: Zustand actions in `editorStore` (history-aware, undo/redo).
 3. **Derived math**:
    - `baseRotation = toRad(baseOrientationDeg)`
    - rosette generation (`buildRosetteCurvesFromSlice`)
@@ -163,7 +163,7 @@ Why Konva here:
 
 Persistence and performance strategy:
 
-- Project state is hydrated/saved from `localStorage` via `useEditorPersistence`.
+- Project state is hydrated/saved from `localStorage` by Zustand `persist` middleware with debounced writes.
 - Heavy geometry calculations are isolated in pure functions and consumed with `useMemo`.
 - Rendering is controlled by small state deltas and React reconciliation.
 
@@ -174,7 +174,7 @@ Persistence and performance strategy:
 - `src/main.tsx` → app bootstrap
 - `src/App.tsx` → route shell
 - `src/components/RosetteMechanism.tsx` → composition root
-- `src/components/rosette/state/editorStore.tsx` → reducer, actions, undo/redo history
+- `src/components/rosette/state/editorStore.tsx` → Zustand store, actions, undo/redo history, persisted hydration
 - `src/components/rosette/components/RosetteControlsPanel.tsx` → UI controls per level
 - `src/components/rosette/components/RosetteCanvas.tsx` → Konva renderer
 - `src/components/rosette/components/EditingBadge.tsx` → active-level indicator
@@ -184,7 +184,6 @@ Persistence and performance strategy:
 - `src/components/rosette/constants.ts` → defaults, ranges, level metadata
 - `src/components/rosette/types.ts` → shared types and mechanism contracts
 - `src/components/rosette/hooks/useDerivedGeometry.ts` → memoized derived pipeline
-- `src/components/rosette/hooks/useEditorPersistence.ts` → local persistence lifecycle
 - `src/components/rosette/math.ts` + `mathViewport.ts` → geometry and viewport utilities
 
 ---
@@ -197,7 +196,7 @@ Use this when briefing another model:
 > Level 1 (shape): edit one or more sprite polylines with optional endpoint axis constraints.  
 > Level 2 (rosette): replicate the seed by rotational symmetry order `n` with optional mirrored adjacency.  
 > Level 3 (tiling): place rosette cells on square/hex lattices and propagate orientation via translation/reflection/glide rules.  
-> `editorStore.tsx` owns reducer/history state; `useDerivedGeometry.ts` computes memoized geometry; pure logic lives in `domains/*`; `RosetteCanvas.tsx` renders via react-konva.
+> `editorStore.tsx` owns Zustand history state (`past/present/future`) with Immer updates and persist hydration; `useDerivedGeometry.ts` computes memoized geometry; pure logic lives in `domains/*`; `RosetteCanvas.tsx` renders via react-konva.
 
 Short glossary:
 

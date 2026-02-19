@@ -7,6 +7,7 @@ Interactive geometric editor for building kinetic rosette motifs and tessellatio
 - React 19 + TypeScript
 - Vite 7
 - React Router 7
+- Zustand + Immer (state management)
 - react-konva / Konva for 2D rendering
 - Playwright for end-to-end tests
 
