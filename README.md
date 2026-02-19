@@ -57,6 +57,12 @@ The editor works in three levels:
 - `src/components/rosette/components/*` — controls and Konva renderer
 - `src/components/rosette/hooks/*` — persistence, viewport/container, derived geometry
 
+## Documentation
+
+- `architecture.md` — technical system architecture
+- `architecture_ui.md` — UI/domain display pipeline
+- `architecture_state.md` — persisted state model and lifecycle
+
 ## References
 
 V. Beatini, *Int. J. Comp. Meth. and Exp. Meas.*, Vol. 5, No. 4 (2017) 631–641  
