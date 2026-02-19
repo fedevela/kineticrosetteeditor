@@ -167,7 +167,7 @@ type EditorAction =
   | { type: "ADD_HANDLE" }
   | { type: "REMOVE_HANDLE" }
   | { type: "UPDATE_SPRITE_TRANSFORM"; spriteId: string; patch: { x?: number; y?: number; rotationDeg?: number; scale?: number } }
-  | { type: "UPDATE_SPRITE_BEZIER"; spriteId: string; patch: { mode?: "quadratic" | "cubic"; t?: number; lutSteps?: number; offset?: number; scale?: number } }
+  | { type: "UPDATE_SPRITE_BEZIER"; spriteId: string; patch: { mode?: "cubic"; t?: number; lutSteps?: number; offset?: number; scale?: number } }
   | {
       type: "UPDATE_SPRITE_BEZIER_NODE";
       spriteId: string;
@@ -475,7 +475,7 @@ export const useEditorActions = () => {
       ) => dispatchAction({ type: "UPDATE_SPRITE_TRANSFORM", spriteId, patch }),
       updateSpriteBezier: (
         spriteId: string,
-        patch: { mode?: "quadratic" | "cubic"; t?: number; lutSteps?: number; offset?: number; scale?: number },
+        patch: { mode?: "cubic"; t?: number; lutSteps?: number; offset?: number; scale?: number },
       ) => dispatchAction({ type: "UPDATE_SPRITE_BEZIER", spriteId, patch }),
       addSprite: () => dispatchAction({ type: "ADD_SPRITE" }),
       removeSprite: (spriteId: string) => dispatchAction({ type: "REMOVE_SPRITE", spriteId }),

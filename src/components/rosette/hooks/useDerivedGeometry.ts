@@ -5,7 +5,13 @@ import { buildRosetteCurvesFromSlice, transformCurvesToCenter } from "../domains
 import { applySpriteTransform, getActiveSprite, getSpriteRenderablePoints } from "../domains/sprite";
 import { buildTessellationMechanism, buildTilingCells } from "../domains/tessellation";
 import { rotatePoint, toRad } from "../math";
-import { RosetteProjectState, Size } from "../types";
+import { RosetteProjectState, Size, TessellationMechanism, TilingCell } from "../types";
+
+const EMPTY_TESSELLATION = {
+  cells: [] as TilingCell[],
+  edges: [],
+  poses: [],
+} satisfies TessellationMechanism;
 
 export const useDerivedGeometry = (projectState: RosetteProjectState, size: Size) => {
   const center = useMemo(() => ({ x: size.width / 2, y: size.height / 2 }), [size]);
@@ -49,33 +55,36 @@ export const useDerivedGeometry = (projectState: RosetteProjectState, size: Size
     });
   }, [activeSprite, baseRotation, center]);
 
-  const tilingCells = useMemo(
-    () => buildTilingCells(projectState.tilingLattice, projectState.tilingRings, projectState.tilingSpacing),
-    [projectState.tilingLattice, projectState.tilingRings, projectState.tilingSpacing],
-  );
+  const isTilingLevel = projectState.editorLevel === "tiling";
 
-  const tessellationMechanism = useMemo(
-    () =>
-      buildTessellationMechanism({
-        cells: tilingCells,
-        order: projectState.order,
-        baseOrientation: baseRotation,
-        interCellRotation: toRad(projectState.interCellRotation) * projectState.foldProgress,
-        symmetry: projectState.tessellationSymmetry,
-        branchOrder: projectState.tessellationBranchOrder,
-        fixedCellId: projectState.fixedCellId.trim() || undefined,
-      }),
-    [
-      tilingCells,
-      projectState.order,
-      baseRotation,
-      projectState.interCellRotation,
-      projectState.foldProgress,
-      projectState.tessellationSymmetry,
-      projectState.tessellationBranchOrder,
-      projectState.fixedCellId,
-    ],
-  );
+  const tilingCells = useMemo(() => {
+    if (!isTilingLevel) return EMPTY_TESSELLATION.cells;
+    return buildTilingCells(projectState.tilingLattice, projectState.tilingRings, projectState.tilingSpacing);
+  }, [isTilingLevel, projectState.tilingLattice, projectState.tilingRings, projectState.tilingSpacing]);
+
+  const tessellationMechanism = useMemo(() => {
+    if (!isTilingLevel) return EMPTY_TESSELLATION;
+
+    return buildTessellationMechanism({
+      cells: tilingCells,
+      order: projectState.order,
+      baseOrientation: baseRotation,
+      interCellRotation: toRad(projectState.interCellRotation) * projectState.foldProgress,
+      symmetry: projectState.tessellationSymmetry,
+      branchOrder: projectState.tessellationBranchOrder,
+      fixedCellId: projectState.fixedCellId.trim() || undefined,
+    });
+  }, [
+    isTilingLevel,
+    tilingCells,
+    projectState.order,
+    baseRotation,
+    projectState.interCellRotation,
+    projectState.foldProgress,
+    projectState.tessellationSymmetry,
+    projectState.tessellationBranchOrder,
+    projectState.fixedCellId,
+  ]);
 
   return {
     center,

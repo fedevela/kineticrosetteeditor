@@ -78,6 +78,33 @@ export function RosetteCanvas({ size }: RosetteCanvasProps) {
   const canvasHostRef = useRef<HTMLDivElement | null>(null);
   const panStartRef = useRef<{ pointer: Point; offset: Point } | null>(null);
   const activeDragRef = useRef<ActiveDrag | null>(null);
+  const dragFrameRef = useRef<number | null>(null);
+  const pendingDragPointRef = useRef<Point | null>(null);
+
+  const flushPendingHandleDrag = () => {
+    if (activeDragRef.current == null || pendingDragPointRef.current == null) return;
+    const drag = activeDragRef.current;
+    const worldPoint = pendingDragPointRef.current;
+    pendingDragPointRef.current = null;
+    actions.updateSpriteBezierNode(drag.spriteId, drag.role, worldPoint, center, baseRotation);
+  };
+
+  const scheduleHandleDragUpdate = (worldPoint: Point) => {
+    pendingDragPointRef.current = worldPoint;
+    if (dragFrameRef.current != null) return;
+
+    dragFrameRef.current = requestAnimationFrame(() => {
+      dragFrameRef.current = null;
+      flushPendingHandleDrag();
+    });
+  };
+
+  const cancelHandleDragFrame = () => {
+    if (dragFrameRef.current != null) {
+      cancelAnimationFrame(dragFrameRef.current);
+      dragFrameRef.current = null;
+    }
+  };
 
   const isSpriteLevel = editorLevel === "sprite";
   const isSliceLevel = editorLevel === "slice";
@@ -164,10 +191,20 @@ export function RosetteCanvas({ size }: RosetteCanvasProps) {
 
   const endHandleDrag = (shouldSnapshot = true) => {
     if (activeDragRef.current == null) return;
+    cancelHandleDragFrame();
+    flushPendingHandleDrag();
     activeDragRef.current = null;
+    pendingDragPointRef.current = null;
     setIsEditingHandle(false);
     if (shouldSnapshot) actions.snapshot();
   };
+
+  useEffect(() => {
+    return () => {
+      cancelHandleDragFrame();
+      pendingDragPointRef.current = null;
+    };
+  }, []);
 
   const activeBezierNodes = useMemo(() => {
     if (!activeSprite) return [] as { role: BezierNodeRole; point: Point; isAnchor: boolean }[];
@@ -231,13 +268,7 @@ export function RosetteCanvas({ size }: RosetteCanvasProps) {
             y: event.clientY - bounds.top,
           };
           const worldPoint = screenToWorld(pointer, viewport);
-          actions.updateSpriteBezierNode(
-            activeDragRef.current.spriteId,
-            activeDragRef.current.role,
-            worldPoint,
-            center,
-            baseRotation,
-          );
+          scheduleHandleDragUpdate(worldPoint);
           return;
         }
         continuePan({ x: event.clientX, y: event.clientY });

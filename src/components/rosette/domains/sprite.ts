@@ -123,23 +123,13 @@ export const getSpriteRenderablePoints = (sprite: Sprite): Point[] => {
   const points = normalized.points;
   if (points.length <= 1) return points;
 
-  const mode = normalized.bezierContext?.mode ?? "cubic";
   const lutSteps = Math.max(8, Math.floor(normalized.bezierContext?.lutSteps ?? 48));
   const bezierScale = normalized.bezierContext?.scale ?? 1;
   const offsetDistance = normalized.bezierContext?.offset ?? 0;
 
   let sampled: Point[] = points;
   try {
-    if (mode === "quadratic" && points.length >= 3) {
-      const q = new Bezier(points[0], points[1], points[2]);
-      sampled = q.getLUT(lutSteps).map((point: { x: number; y: number }, index: number, arr: unknown[]) => {
-        if (offsetDistance === 0 || arr.length <= 1) return { x: point.x, y: point.y };
-        const t = index / (arr.length - 1);
-        const projected = q.offset(t, offsetDistance);
-        return toPoint(projected, point);
-      });
-    }
-    if (mode === "cubic" && points.length >= 4) {
+    if (points.length >= 4) {
       const c = new Bezier(points[0], points[1], points[2], points[3]);
       sampled = c.getLUT(lutSteps).map((point: { x: number; y: number }, index: number, arr: unknown[]) => {
         if (offsetDistance === 0 || arr.length <= 1) return { x: point.x, y: point.y };

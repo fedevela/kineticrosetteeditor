@@ -28,7 +28,7 @@ export type Sprite = {
     scale: number;
   };
   bezierContext?: {
-    mode: "quadratic" | "cubic";
+    mode: "cubic";
     t: number;
     lutSteps: number;
     offset: number;

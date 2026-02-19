@@ -4,7 +4,7 @@ type SpriteControlsProps = {
   sprite: Sprite | null;
   activeSpritePointsLength: number;
   updateSpriteTransform: (spriteId: string, patch: { x?: number; y?: number; rotationDeg?: number; scale?: number }) => void;
-  updateSpriteBezier: (spriteId: string, patch: { mode?: "quadratic" | "cubic"; t?: number; lutSteps?: number; offset?: number; scale?: number }) => void;
+  updateSpriteBezier: (spriteId: string, patch: { mode?: "cubic"; t?: number; lutSteps?: number; offset?: number; scale?: number }) => void;
   addHandle: () => void;
   removeHandle: () => void;
 };
@@ -29,15 +29,7 @@ export function SpriteControls({
         <button type="button" onClick={removeHandle} disabled={activeSpritePointsLength <= 2} className="btn btn-sm kr-control is-disabled-when-needed">Remove control point</button>
       </div>
       <p className="small-text text-zinc-soft">Tip: Alt + click a curve to insert a point on segment.</p>
-      <label className="control-label">Curve mode</label>
-      <select
-        value={bezier.mode}
-        onChange={(event) => updateSpriteBezier(sprite.id, { mode: event.target.value as "quadratic" | "cubic" })}
-        className="kr-control text-input text-amber-soft"
-      >
-        <option value="quadratic">Quadratic</option>
-        <option value="cubic">Cubic</option>
-      </select>
+      <div className="row-between"><label>Curve mode</label><span>Cubic</span></div>
       <div className="row-between"><label>Bezier LUT</label><span>{bezier.lutSteps}</span></div>
       <input type="range" min={8} max={160} step={1} value={bezier.lutSteps} onChange={(event) => updateSpriteBezier(sprite.id, { lutSteps: Number(event.target.value) })} className="range-input checkbox-amber" />
       <div className="row-between"><label>Bezier offset</label><span>{bezier.offset.toFixed(0)}</span></div>
